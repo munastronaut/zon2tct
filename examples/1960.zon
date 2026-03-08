@@ -551,14 +551,47 @@
                 .{
                     .text = "I believe that we need more vigilance in the area of defense, for both military equipment and for missile development. We currently have a missile gap with the Soviet Union.",
                     .feedback = "This is a core argument of your campaign, and a good place to differentiate yourself from the Republicans.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.004,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.65,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We can always find areas for improvement, but we have successfully defended the United States and our allies from numerous Communist threats over the past eight years.",
                     .feedback = "This won't hurt you too much, but it does nothing to differentiate you from Nixon and Eisenhower.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.55,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "In the final analysis, every dollar spent on defense is taken from more productive uses within our economy. I will look for ways to find common ground with the Soviet Union so that we can cut defense spending.",
                     .feedback = "This is definitely too soft of a stance to take on the issue of military spending and the Soviet Union.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.05,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0.25,
+                            .importance = 4,
+                        },
+                    },
                 },
             },
         },
@@ -568,18 +601,63 @@
                 .{
                     .text = "This program is a good starting point, but I would much prefer a program of national health insurance for all Americans -- not just the elderly.",
                     .feedback = "This will certainly galvanize your base, but it's hard to imagine that you can get national health insurance passed after the failures of Truman on this front.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.01,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.65,
+                            .importance = 1,
+                        },
+                        .{
+                            .issue = .healthcare,
+                            .score = 0.7,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "I would redouble our efforts on this front. Too many of our nation's elderly are unable to afford decent medical care in their advanced years.",
                     .feedback = "This is exactly what your party wants to hear and will push for on this issue.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .healthcare,
+                            .score = 0.4,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I prefer a slightly different program, offering health insurance to the elderly that they can choose to purchase. The proposed program was mandatory, and also covered only those covered by the Social Security Act.",
                     .feedback = "This is really more of a Republican idea, and it's not like old-age health insurance is unpopular...",
+                    .issue_effects = .{
+                        .{
+                            .issue = .healthcare,
+                            .score = -0.1,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "This program would represent a massive new financial commitment for the federal government, when care of the elderly properly rests with the affected family.",
                     .feedback = "This is definitely an extreme stance for a Democrat to take.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.02,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .healthcare,
+                            .score = -0.6,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -589,18 +667,57 @@
                 .{
                     .text = "We need more spending and lower interest rates, and we need to repeal the Taft-Hartley Act and put more money into the hands of the American people.",
                     .feedback = "Repeal of Taft-Hartley is bound to appeal to the union wing of the party.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.4,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We must do better. Our present Administration has advocated a hard money policy which caused the recession of 1958 and left idle industrial capacity in our country.",
-                    .feedback = "Not only does it undercut your claims as Eisenhower's successor, but it also offends Eisenhower personally when you criticize his economic record.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.35,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We are on the right track economically. We can't deny that there was a recession in 1958, but the recovery has been strong and 1960 will see a very high rate of growth in this country.",
                     .feedback = "As a challenger in this election, it doesn't make sense for you to praise Eisenhower's economic record.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.02,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.1,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "The Eisenhower Administration has unfortunately failed to take any real action in undoing the excesses of the New Deal. I would like to see a more conservative Administration in power.",
                     .feedback = "This is not a good response for a Democratic candidate.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.033,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.65,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -610,14 +727,39 @@
                 .{
                     .text = "I am satisfied with our progress over the past few years. We have prevented further expansion while avoiding any major wars.",
                     .feedback = "As a challenger in this election, it's better to point out problems in the foreign policy of Eisenhower, than to say it has been completely effective.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.004,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We can never be fully satisfied, but we have certainly held our own in the Cold War over the past eight years, compared to where we were during the Korean War.",
-                    .feedback = "This is a good answer that supports the record and policies of yourself and Eisenhower.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.5,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "Cuba has been lost to the Soviet Union, providing a potential base for Communist aggression on the very doorstep of our nation. I am very unsatisfied with the current situation.",
-                    .feedback = "Not only does it undercut your claims as Eisenhower's successor, but it also offends Eisenhower personally when you criticize his foreign policy.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.75,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -627,14 +769,50 @@
                 .{
                     .text = "I am as satisfied as I can be. With sound defense policies and strong economic growth, we should continue to maintain our advantage over the Soviet Union.",
                     .feedback = "As a challenger in this election, it's better to point out problems in the foreign policy of Eisenhower, than to say it has been completely effective.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.004,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .target = .cold_war,
+                            .score = -0.5,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I don't know, to be perfectly frank. Things are going well for now, but we will have many challenges to meet in places like Cuba, Lebanon, Latin America, Indochina, and elsewhere.",
-                    .feedback = "Not only does it undercut your claims as Eisenhower's successor, but it also offends Eisenhower personally when you criticize his foreign policy.",
+                    .issue_effects = .{
+                        .{
+                            .target = .cold_war,
+                            .score = -0.6,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We have a missile gap, and an overly tight monetary policy that is constraining our growth. I'm very concerned that these shortfalls will allow the Soviet Union to gain an advantage if they are not addressed.",
-                    .feedback = "Not only does it undercut your claims as Eisenhower's successor, but it also offends Eisenhower personally when you criticize his foreign policy.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.004,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .target = .cold_war,
+                            .score = -0.7,
+                            .importance = 1,
+                        },
+                        .{
+                            .target = .economy,
+                            .score = 0.3,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -647,6 +825,12 @@
                 .{
                     .text = "I question this premise, to be frank. It's still not clear to me exactly what role Nixon had in the Eisenhower Administration, or what policies of his have been implemented.",
                     .feedback = "This might not be the right answer in the case of Nixon. It comes off as overly aggressive, and if 8 years as Vice President is not enough experience, where does that leave you?",
+                    .global_effects = .{
+                        .{
+                            .target = .nixon,
+                            .effect = -0.005,
+                        },
+                    },
                 },
                 .{
                     .text = "I will bring new, dynamic leadership to this country as President. I don't see how this line of argument puts me at any disadvantage.",
@@ -659,9 +843,29 @@
                 .{
                     .text = "Let's gather some of these leaflets and show them to the media and to major newspapers. I think they demonstrate the lengths that some people will go to discredit my candidacy.",
                     .feedback = "The impulse is noble, but you come across as a little petty as you awkwardly read from these leaflets at your latest press conference.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.005,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .catholicism,
+                            .score = 0.675,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "I will attack the idea that any good Protestant would vote against my candidacy because I happen to be a Catholic.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .catholicism,
+                            .score = 0.625,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "We can't be out there responding to every little two-bit leaflet that some crank puts out. Let's wait and see how this issue develops.",
@@ -675,13 +879,40 @@
                 .{
                     .text = "We lost a lot of ground diplomatically after this event, and much of that could have been avoided had we issued a formal apology.",
                     .feedback = "The headlines today say, “KENNEDY ADVOCATES APOLOGY TO SOVIET UNION”, which is probably not a good thing.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.011,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0.25,
+                            .importance = 4,
+                        },
+                    },
                 },
                 .{
                     .text = "A formal apology sounds a bit extreme, but we could certainly have expressed our regrets and perhaps saved the Paris Summit from collapse.",
                     .feedback = "Nixon needles you a bit on this point, but it isn't too controversial.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.55,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "Absolutely not. We cannot show weakness in the face of the Soviet threat, and the Paris Summit collapsed from the intransigence of Nikita Khrushchev.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.75,
+                            .importance = 2,
+                        },
+                    },
                 },
             },
         },
@@ -690,13 +921,59 @@
             .answers = .{
                 .{
                     .text = "He absolutely did, and I would like to see further action to desegregate our schools and enforce our civil rights.",
+                    .state_effects = .{
+                        .{
+                            .state = .arkansas,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = -0.025,
+                                },
+                            },
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = 0.5,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "I believe that Eisenhower did what he had to do in this case, to make sure the decisions of our Supreme Court are enforced.",
+                    .state_effects = .{
+                        .{
+                            .state = .arkansas,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = -0.01,
+                                },
+                            },
+                        },
+                    },
                 },
                 .{
                     .text = "We should have found a better way to resolve this issue, rather than intrude into the sovereignty of an American state.",
                     .feedback = "This seems like a coded argument for segregation to some.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.012,
+                        },
+                        .{
+                            .target = .unpledged,
+                            .effect = -0.065,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = -0.5,
+                            .importance = 3,
+                        },
+                    },
                 },
             },
         },
@@ -706,14 +983,55 @@
                 .{
                     .text = "This movement has my full support, as do the other civil rights measures of our day. I will push for a Civil Rights Act as President.",
                     .feedback = "This will help you drive turnout in the northern states, and hurt a little in the South.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.005,
+                        },
+                        .{
+                            .target = .unpledged,
+                            .effect = 0.075,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = 0.55,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I support the civil rights movement, but I'm a little concerned about the disregard for the law that some of these activists have shown.",
                     .feedback = "This is a safe answer that won't hurt you too much with anybody.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = -0.05,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "These activists are trespassing on the property of lawful businesses. I think there are better methods of pushing for change in the South.",
                     .feedback = "This might help you in the Deep South, but it will definitely not help with black and liberal turnout in other regions.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.005,
+                        },
+                        .{
+                            .target = .unpledged,
+                            .effect = -0.04,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = -0.4,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -723,14 +1041,47 @@
                 .{
                     .text = "Let's take this opportunity to make a major speech on the topic. I will address this issue exclusively in a televised speech, and put it to rest for good.",
                     .feedback = "Giving this speech was a good idea. Many people were impressed, and it provided good material for future advertisements.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.005,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .catholicism,
+                            .score = 0.45,
+                            .importance = 10,
+                        },
+                    },
                 },
                 .{
                     .text = "Let's put a couple of statements into my next campaign speech to address this issue, and reassure the public that I take no orders from the Pope.",
                     .feedback = "This is an acceptable response, but it wouldn't have harmed you to be a little more bold.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .catholicism,
+                            .score = 0.45,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "I am Catholic and proud of it. I will not respond to bigoted attacks or innuendo, and I trust that these attacks will only help me by driving higher Catholic turnout.",
                     .feedback = "It won't cripple your chances of winning the election, but there are some concerns about how passive you've been on addressing this issue.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.005,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .catholicism,
+                            .score = 0.7,
+                            .importance = 4,
+                        },
+                    },
                 },
             },
         },
@@ -740,18 +1091,42 @@
                 .{
                     .text = "Let's be cautious with this idea. Nixon is a skilled debater, and the last thing we need right now is a campaign setback on national television.",
                     .feedback = "Nixon is better known than you are, you're a good debater, and you're telegenic. Why would you not want to debate him?",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.01,
+                        },
+                    },
                 },
                 .{
                     .text = "I would love to go against Nixon in a televised debate. We could use the exposure and I'm confident that I would win.",
                     .feedback = "You've managed to come across as Nixon's equal in these debates, and that alone is a good start...",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.035,
+                        },
+                    },
                 },
                 .{
                     .text = "I would love to go against Nixon in a televised debate. We could use the exposure and I'm confident that I would win.",
                     .feedback = "You are the clear winner in the first debate, and it shows in the sudden enthusiasm of your crowds.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.055,
+                        },
+                    },
                 },
                 .{
                     .text = "I would love to go against Nixon in a televised debate. We could use the exposure and I'm confident that I would win.",
                     .feedback = "You are the clear winner in the first debate, and it shows in the sudden enthusiasm of your crowds.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.055,
+                        },
+                    },
                 },
             },
         },
@@ -761,17 +1136,57 @@
                 .{
                     .text = "We need to make sure we don't overextend ourselves into new regions when the situation does not warrant it.",
                     .feedback = "This is a pretty passive answer for a Cold War environment.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.007,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0.3,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "This is a situation that we need to watch carefully, and I am open to a variety of measures if necessary.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.45,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I believe we need to defend South Vietnam at all costs, whatever commitment of our forces that entails.",
                     .feedback = "This is the kind of aggressive stance that the American people want to hear.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.6,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I would support the use of massive air strikes or tactical nuclear weapons to defend our ally, South Vietnam.",
                     .feedback = "It's hard to sound too aggressive on the Cold War, but this might do it. A lot of people think this is an extreme idea.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.07,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.999,
+                            .importance = 10,
+                        },
+                    },
                 },
             },
         },
@@ -781,18 +1196,64 @@
                 .{
                     .text = "Labor unions have been needlessly undermined by the Taft-Hartley Act, and by self-serving investigations from both parties. I will do anything I can as President to support our nation's laborers.",
                     .feedback = "This is a little incongruous with some of what you and Robert Kennedy have been doing recently in the area of investigating union abuses.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.002,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.6,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "I support unions and I oppose the excesses of leaders such as Jimmy Hoffa. Unions, cleansed of their corrupt elements, should play a central role in the American economy.",
                     .feedback = "This is exactly what your party wants to hear.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.3,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We should be vigilant against labor union excesses, and the Taft-Hartley Act was a good start. I believe that we should keep that law in place.",
                     .feedback = "You yourself voted against Taft-Hartley, and now you are reversing yourself in the midst of an election? For what reason?",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.015,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.25,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We need to do anything we can to reduce the power of labor unions in this country, including a national right-to-work law.",
                     .feedback = "This is way out there for a Democrat. What do you mean by this?",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.06,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.7,
+                            .importance = 3,
+                        },
+                    },
                 },
             },
         },
@@ -802,10 +1263,30 @@
                 .{
                     .text = "We need to dispatch an armed garrison to these islands, to make sure there is no mistaking our commitment in our fight against Communism.",
                     .feedback = "People want to see a President who is tough on Communism, but even some staunch anti-Communists feel that sending troops to such tiny and remote islands is ill-advised.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.015,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -1,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "I do believe we should defend these islands. We are committed to the defense of Taiwan, and that commitment must include all of Taiwan to be credible.",
                     .feedback = "This is a good answer for this situation.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.625,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "It wouldn't be responsible of me to comment at this point. As President I will consult with our military leaders to determine what is appropriate.",
@@ -814,6 +1295,19 @@
                 .{
                     .text = "I'm not sure it's practical or desirable from a military standpoint to defend two tiny islands that are much closer to the Chinese mainland than they are to Formosa.",
                     .feedback = "This position is a little too passive for those who want to see a tough, Cold War leader as President.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.015,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0.3,
+                            .importance = 2,
+                        },
+                    },
                 },
             },
         },
@@ -823,13 +1317,40 @@
                 .{
                     .text = "Education is a key front in our battle with Communism, and that includes adequate pay and respect for our nation's teachers. I would support additional federal spending on this.",
                     .feedback = "This is a good answer that should win support for you from Democrats.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.4,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "I'm not satisfied with how well teachers are paid in this country, and I'd encourage local jurisdictions to address this issue further. We need to strike a good balance in this regard.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0,
+                            .importance = 1,
+                        },
+                    },
                 },
                 .{
                     .text = "We need to minimize the federal funding of education, even in block grants. It could easily open the door to federal control of our schools.",
                     .feedback = "This isn't a good response for the majority of your party.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.012,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.6,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -838,15 +1359,61 @@
             .answers = .{
                 .{
                     .text = "We need to do anything we can to move our nation forward on this issue, including a civil rights bill and measures to protect voting rights.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.004,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = 0.6,
+                            .importance = 4,
+                        },
+                    },
                 },
                 .{
                     .text = "I am supportive of a civil rights bill and will work with Congress to get one written and passed.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = 0.25,
+                            .importance = 4,
+                        },
+                    },
                 },
                 .{
                     .text = "This is something that is more appropriately addressed by individual states, though I will do anything I can to enforce the decisions of our Supreme Court.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.007,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = -0.25,
+                            .importance = 4,
+                        },
+                    },
                 },
                 .{
                     .text = "I would not support a measure like this. This would be an unnecessary and unconstitutional interference into the rights of our states.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.018,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .score = -0.6,
+                            .importance = 4,
+                        },
+                    },
                 },
             },
         },
@@ -855,6 +1422,12 @@
             .answers = .{
                 .{
                     .text = "We've seen some alarming things out of Cuba, but this isn't necessarily a lost cause. Cuba has not declared itself a Communist state and we should be making overtures to prevent that.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.005,
+                        },
+                    },
                 },
                 .{
                     .text = "We will defend our base at Guantanamo and do anything else that is necessary if Cuba continues its hostility. However, it is too early to make a conclusive determination at this point.",
@@ -862,6 +1435,13 @@
                 .{
                     .text = "What we've unfortunately seen in Cuba is the consequence of insufficient support for anti-Communist governments and movements. We need to be much more aggressive in our actions against the Castro government.",
                     .feedback = "It's good to be aggressive during the campaign, but can you back it up if you are elected?",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = -0.7,
+                            .importance = 1,
+                        },
+                    },
                 },
             },
         },
@@ -871,14 +1451,53 @@
                 .{
                     .text = "I support this measure, and believe it would be greatly beneficial to millions of American workers.",
                     .feedback = "This puts you at odds with many Republicans, but a higher minimum wage is not the most unpopular idea.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.002,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = 0.45,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "Our current minimum wage is sufficient in my opinion. The minimum wage is a necessary expedient but we shouldn't be increasing it so much that we cause unemployment.",
                     .feedback = "This puts you at odds with many Democrats, and the minimum wage is popular as well.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.02,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.1,
+                            .importance = 2,
+                        },
+                    },
                 },
                 .{
                     .text = "I believe a minimum wage is at the very least a bad economic idea, and possibly unconstitutional. I do not support this increase.",
                     .feedback = "Abolishing the minimum wage is definitely a fringe position by this point.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.033,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .economy,
+                            .score = -0.65,
+                            .importance = 2,
+                        },
+                    },
                 },
             },
         },
@@ -887,7 +1506,13 @@
             .answers = .{
                 .{
                     .text = "The last thing we need is a return to excesses and witch-hunts of the early 1950s. We need to keep ourselves focused on the external Communist threat.",
-                    .feedback = "Many remember your role (for better or worse) in unmasking Alger Hiss and other incidents, and are surprised to hear you talking about “witch hunts” now.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .cold_war,
+                            .score = 0.25,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "We should always be concerned about internal subversion, but the external Soviet threat should be our primary focus at this point.",
@@ -895,6 +1520,12 @@
                 .{
                     .text = "It's unfortunate that we've become less vigilant on the internal Communist threat in recent years. Espionage and infiltration of our government is as serious a threat as external Soviet action.",
                     .feedback = "This argument seems stale after years of aggressive Soviet expansion, combined with a minimum number of internal security leaks.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.025,
+                        },
+                    },
                 },
             },
         },
@@ -904,13 +1535,39 @@
                 .{
                     .text = "Let's make a call to Mrs. King to offer our condolences, and let's demand the release of Mr. King.",
                     .feedback = "This definitely helps you with the black and liberal vote in the north.",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = 0.01,
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .effect = 0.55,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "Let's make a public comment criticizing this arrest, and expressing our hopes that this situation doesn't escalate any further.",
+                    .issue_effects = .{
+                        .{
+                            .issue = .civil_rights,
+                            .effect = 0.25,
+                            .importance = 3,
+                        },
+                    },
                 },
                 .{
                     .text = "I will give a statement encouraging the State of Georgia to protect the safety of Mr. King, while criticizing him for participating in these inflammatory and illegal protests.",
                     .feedback = "This seems like an overly critical response where Dr. King is concerned. ",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.02,
+                        },
+                    },
                 },
             },
         },
@@ -929,18 +1586,248 @@
                 .{
                     .text = "We will campaign up and down New York and the Eastern Seaboard.",
                     .feedback = "You have enthusiastic crowds wherever you go. Unfortunately, Eisenhower has also hit the trail for the final few days, and is definitely helping Nixon. Good luck tonight!",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.011,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .connecticut,
+                            .effects = .{
+                                .target = 0.007,
+                            },
+                        },
+                        .{
+                            .state = .delaware,
+                            .effects = .{
+                                .target = 0.007,
+                            },
+                        },
+                        .{
+                            .state = .maryland,
+                            .effects = .{
+                                .target = 0.007,
+                            },
+                        },
+                        .{
+                            .state = .new_jersey,
+                            .effects = .{
+                                .target = 0.007,
+                            },
+                        },
+                        .{
+                            .state = .new_york,
+                            .effects = .{
+                                .target = 0.01,
+                            },
+                        },
+                        .{
+                            .state = .pennsylvania,
+                            .effects = .{
+                                .target = 0.007,
+                            },
+                        },
+                    },
                 },
                 .{
                     .text = "We will focus on the Midwest.",
                     .feedback = "You have enthusiastic crowds wherever you go. Unfortunately, Eisenhower has also hit the trail for the final few days, and is definitely helping Nixon. Good luck tonight!",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.011,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .illinois,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .michigan,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .minnesota,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .missouri,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .ohio,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .wisconsin,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                    },
                 },
                 .{
                     .text = "We will travel to California and the West Coast.",
                     .feedback = "You have enthusiastic crowds wherever you go. Unfortunately, Eisenhower has also hit the trail for the final few days, and is definitely helping Nixon. Good luck tonight!",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.011,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .california,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.013,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .nevada,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .oregon,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .washington,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
+                            },
+                        },
+                    },
                 },
                 .{
                     .text = "We will focus on Texas and the South.",
                     .feedback = "You have enthusiastic crowds wherever you go. Unfortunately, Eisenhower has also hit the trail for the final few days, and is definitely helping Nixon. Good luck tonight!",
+                    .global_effects = .{
+                        .{
+                            .target = .kennedy,
+                            .effect = -0.011,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .alabama,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .arkansas,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .florida,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .georgia,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .louisiana,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .mississippi,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .south_carolina,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.005,
+                                },
+                            },
+                        },
+                        .{
+                            .state = .texas,
+                            .effects = .{
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.01,
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },
