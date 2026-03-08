@@ -131,7 +131,7 @@ const Transpiler = struct {
             \\      priority: 1,
             \\      description: "{s}",
             \\      likelihood: 1,
-            \\    }}
+            \\    }},
             \\  }},
             \\
         , .{ q_id, escaped_desc.items });
@@ -164,7 +164,7 @@ const Transpiler = struct {
             \\    fields: {{
             \\      question: {d},
             \\      description: "{s}",
-            \\    }}
+            \\    }},
             \\  }},
             \\
         , .{ a_id, q_id, escaped_answer.items });
@@ -185,7 +185,7 @@ const Transpiler = struct {
                 \\      answer: {d},
                 \\      candidate: {s},
                 \\      answer_feedback: "{s}",
-                \\    }}
+                \\    }},
                 \\  }},
                 \\
             , .{ self.f_pk, a_id, self.player_id, escaped_feedback.items });
@@ -222,7 +222,7 @@ const Transpiler = struct {
                     \\      candidate: {s},
                     \\      affected_candidate: {d},
                     \\      global_multiplier: {s},
-                    \\    }}
+                    \\    }},
                     \\  }},
                     \\
                 , .{ self.ge_pk, a_id, self.player_id, target_id, raw_effect });
@@ -261,7 +261,7 @@ const Transpiler = struct {
                         \\      candidate: {s},
                         \\      affected_candidate: {d},
                         \\      state_multiplier: {s},
-                        \\    }}
+                        \\    }},
                         \\  }},
                         \\
                     , .{ self.se_pk, a_id, state_id, self.player_id, target_id, raw_effect });
@@ -294,7 +294,7 @@ const Transpiler = struct {
                     \\      issue: {d},
                     \\      issue_score: {s},
                     \\      issue_importance: {s},
-                    \\    }}
+                    \\    }},
                     \\  }},
                     \\
                 , .{ self.ie_pk, a_id, issue_id, raw_effect, raw_importance });
