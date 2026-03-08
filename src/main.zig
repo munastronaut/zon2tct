@@ -3,6 +3,82 @@ const Io = std.Io;
 const Ast = std.zig.Ast;
 const Allocator = std.mem.Allocator;
 
+const LineAndColumn = struct {
+    line: usize,
+    column: usize,
+};
+
+const Severity = enum {
+    @"error",
+    warning,
+    note,
+};
+
+const Diagnostics = struct {
+    severity: Severity,
+    line: usize,
+    column: usize,
+    message: []const u8,
+};
+
+const ErrorCollector = struct {
+    const Self = @This();
+
+    allocator: Allocator,
+    diagnostics: std.ArrayList(Diagnostics),
+    has_errors: bool = false,
+
+    pub fn init(allocator: Allocator) Self {
+        return .{
+            .allocator = allocator,
+            .diagnostics = .empty,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.diagnostics.deinit(self.allocator);
+    }
+
+    pub fn report(self: *Self, severity: Severity, loc: LineAndColumn, message: []const u8) !void {
+        try self.diagnostics.append(self.allocator, .{
+            .severity = severity,
+            .line = loc.line,
+            .column = loc.column,
+            .message = message,
+        });
+        self.has_errors = true;
+    }
+
+    pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !void {
+        var buf: [4096]u8 = undefined;
+        var writer = Io.File.stderr().writer(io, &buf);
+        const stderr = &writer.interface;
+
+        for (self.diagnostics.items) |d| {
+            const ansi_code: usize = switch (d.severity) {
+                .@"error" => 31,
+                .warning => 35,
+                .note => 90,
+            };
+            try stderr.print("\x1b[1m{s}:{d}:{d}: \x1b[{d}m{s}:\x1b[0m\x1b[1m {s}\x1b[0m\n", .{ filename, d.line, d.column, ansi_code, @tagName(d.severity), d.message });
+
+            var line_it = std.mem.splitScalar(u8, source, '\n');
+            var current_line: usize = 1;
+            while (line_it.next()) |line_text| : (current_line += 1) {
+                if (current_line == d.line) {
+                    try stderr.print(" {s}\n", .{line_text});
+                    try stderr.writeAll(" ");
+                    for (0..d.column - 1) |_|
+                        try stderr.writeAll(" ");
+                    try stderr.print("\x1b[{d}m^\x1b[0m\n", .{ansi_code});
+                    break;
+                }
+            }
+        }
+        try stderr.flush();
+    }
+};
+
 const SymbolTable = struct {
     const Self = @This();
 
@@ -70,6 +146,7 @@ const Transpiler = struct {
     arena: *std.heap.ArenaAllocator,
     allocator: Allocator,
     symbols: *SymbolTable,
+    collector: *ErrorCollector,
     player_id: []const u8,
 
     questions: std.ArrayList(u8),
@@ -86,11 +163,12 @@ const Transpiler = struct {
     se_pk: i32 = STARTING_SE_PK,
     ie_pk: i32 = STARTING_IE_PK,
 
-    pub fn init(arena: *std.heap.ArenaAllocator, symbols: *SymbolTable) Self {
+    pub fn init(arena: *std.heap.ArenaAllocator, symbols: *SymbolTable, collector: *ErrorCollector) Self {
         return .{
             .arena = arena,
             .allocator = arena.allocator(),
             .symbols = symbols,
+            .collector = collector,
             .player_id = "e.candidate_id",
             .questions = .empty,
             .answers = .empty,
@@ -115,7 +193,10 @@ const Transpiler = struct {
     fn processQuestion(self: *Self, ast: *Ast, q_node: Ast.Node.Index) !void {
         const q_id = self.q_pk;
 
-        const q_text_node = findField(ast, q_node, "text") orelse return;
+        const q_text_node = findField(ast, q_node, "text") orelse blk: {
+            try self.collector.report(.@"error", getNodeLocation(ast, q_node), "question is missing required field 'text'");
+            break :blk @as(Ast.Node.Index, @enumFromInt(0));
+        };
         const q_text = try getNodeString(self.allocator, ast, q_text_node);
 
         var escaped_desc = try escapeChars(self.allocator, q_text);
@@ -136,7 +217,10 @@ const Transpiler = struct {
             \\
         , .{ q_id, escaped_desc.items });
 
-        const answers_node = findField(ast, q_node, "answers") orelse return;
+        const answers_node = findField(ast, q_node, "answers") orelse blk: {
+            try self.collector.report(.@"error", getNodeLocation(ast, q_node), "question is missing required field 'answers'");
+            break :blk @as(Ast.Node.Index, @enumFromInt(0));
+        };
         var buffer: [2]Ast.Node.Index = undefined;
         const answers_array = ast.fullArrayInit(&buffer, answers_node) orelse return;
 
@@ -149,7 +233,10 @@ const Transpiler = struct {
     fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !void {
         const a_id = self.a_pk;
 
-        const a_text_node = findField(ast, a_node, "text") orelse return;
+        const a_text_node = findField(ast, a_node, "text") orelse blk: {
+            try self.collector.report(.@"error", getNodeLocation(ast, a_node), "answer is missing required field 'text'");
+            break :blk @as(Ast.Node.Index, @enumFromInt(0));
+        };
         const a_text = try getNodeString(self.allocator, ast, a_text_node);
 
         var escaped_answer = try escapeChars(self.allocator, a_text);
@@ -199,15 +286,13 @@ const Transpiler = struct {
             if (self.ge_pk == STARTING_GE_PK) try self.global_effects.append(self.allocator, '\n');
 
             for (array.ast.elements) |eff_node| {
-                const target_node = findField(ast, eff_node, "target") orelse {
-                    const loc = getNodeLocation(ast, eff_node);
-                    std.process.fatal("no target for global effect! line {d}:{d}", .{ loc.line, loc.column });
-                    continue;
+                const target_node = findField(ast, eff_node, "target") orelse blk: {
+                    try self.collector.report(.@"error", getNodeLocation(ast, eff_node), "global effect is missing required field 'target'");
+                    break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
-                const effect_node = findField(ast, eff_node, "effect") orelse {
-                    const loc = getNodeLocation(ast, eff_node);
-                    std.process.fatal("no effect for global effect! line {d}:{d}", .{ loc.line, loc.column });
-                    continue;
+                const effect_node = findField(ast, eff_node, "effect") orelse blk: {
+                    try self.collector.report(.@"error", getNodeLocation(ast, eff_node), "global effect is missing required field 'effect'");
+                    break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
 
                 const target_id = try self.resolveId(ast, target_node);
@@ -245,15 +330,13 @@ const Transpiler = struct {
                 const eff_arr = ast.fullArrayInit(&buf, effects_node) orelse return;
 
                 for (eff_arr.ast.elements) |sef_node| {
-                    const target_node = findField(ast, sef_node, "target") orelse {
-                        const loc = getNodeLocation(ast, sef_node);
-                        std.process.fatal("no target for state effect! line {d}:{d}", .{ loc.line, loc.column });
-                        continue;
+                    const target_node = findField(ast, sef_node, "target") orelse blk: {
+                        try self.collector.report(.@"error", getNodeLocation(ast, sef_node), "state effect is missing required field 'target'");
+                        break :blk @as(Ast.Node.Index, @enumFromInt(0));
                     };
-                    const effect_node = findField(ast, sef_node, "effect") orelse {
-                        const loc = getNodeLocation(ast, sef_node);
-                        std.process.fatal("no effect for state effect! line {d}:{d}", .{ loc.line, loc.column });
-                        continue;
+                    const effect_node = findField(ast, sef_node, "effect") orelse blk: {
+                        try self.collector.report(.@"error", getNodeLocation(ast, sef_node), "state effect is missing required field 'effect'");
+                        break :blk @as(Ast.Node.Index, @enumFromInt(0));
                     };
 
                     const target_id = try self.resolveId(ast, target_node);
@@ -285,17 +368,17 @@ const Transpiler = struct {
             if (self.ie_pk == STARTING_IE_PK) try self.issue_effects.append(self.allocator, '\n');
 
             for (array.ast.elements) |eff_node| {
-                const issue_node = findField(ast, eff_node, "issue") orelse {
-                    const loc = getNodeLocation(ast, eff_node);
-                    std.process.fatal("no issue for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                const issue_node = findField(ast, eff_node, "issue") orelse blk: {
+                    try self.collector.report(.@"error", getNodeLocation(ast, eff_node), "issue effect is missing required field 'issue'");
+                    break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
-                const score_node = findField(ast, eff_node, "score") orelse {
-                    const loc = getNodeLocation(ast, eff_node);
-                    std.process.fatal("no score for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                const score_node = findField(ast, eff_node, "score") orelse blk: {
+                    try self.collector.report(.@"error", getNodeLocation(ast, eff_node), "issue effect is missing required field 'score'");
+                    break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
-                const importance_node = findField(ast, eff_node, "importance") orelse {
-                    const loc = getNodeLocation(ast, eff_node);
-                    std.process.fatal("no importance for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                const importance_node = findField(ast, eff_node, "importance") orelse blk: {
+                    try self.collector.report(.@"error", getNodeLocation(ast, eff_node), "issue effect is missing required field 'importance'");
+                    break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
 
                 const issue_id = try self.resolveId(ast, issue_node);
@@ -331,8 +414,8 @@ const Transpiler = struct {
             if (self.symbols.states.get(key)) |val| return val;
             if (self.symbols.issues.get(key)) |val| return val;
 
-            const loc = getNodeLocation(ast, node);
-            std.process.fatal("undefined alias used: '\x1b[1m.{s}\x1b[0m' at line {d}:{d}", .{ key, loc.line, loc.column });
+            try self.collector.report(.@"error", getNodeLocation(ast, node), try std.fmt.allocPrint(self.allocator, "undefined alias used: .{s}", .{key}));
+            return 0;
         }
 
         return std.fmt.parseInt(i32, slice, 10) catch 0;
@@ -364,7 +447,10 @@ pub fn main(init: std.process.Init) !void {
     var symbols = SymbolTable.init(allocator);
     defer symbols.deinit();
 
-    var transpiler = Transpiler.init(init.arena, &symbols);
+    var collector = ErrorCollector.init(allocator);
+    defer collector.deinit();
+
+    var transpiler = Transpiler.init(init.arena, &symbols, &collector);
 
     if (findField(&ast, root_expr_idx, "definitions")) |defs_node|
         try symbols.populateTable(arena, &ast, defs_node);
@@ -376,6 +462,11 @@ pub fn main(init: std.process.Init) !void {
 
     if (findField(&ast, root_expr_idx, "questions")) |questions_node|
         try transpiler.transpile(&ast, questions_node);
+
+    if (transpiler.collector.has_errors) {
+        try transpiler.collector.render(init.io, input_path, src);
+        std.process.exit(1);
+    }
 
     const output_file = try Io.Dir.cwd().createFile(init.io, output_path, .{});
     defer output_file.close(init.io);
@@ -531,7 +622,7 @@ fn getNodeSource(ast: *Ast, node: Ast.Node.Index) []const u8 {
     return ast.source[start..end];
 }
 
-fn getNodeLocation(ast: *Ast, node: Ast.Node.Index) struct { line: usize, column: usize } {
+fn getNodeLocation(ast: *Ast, node: Ast.Node.Index) LineAndColumn {
     const main_toks = ast.nodes.items(.main_token);
     const tok_idx = main_toks[@intFromEnum(node)];
     const loc = ast.tokenLocation(0, tok_idx);
