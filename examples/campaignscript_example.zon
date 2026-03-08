@@ -1,0 +1,33 @@
+.{
+    .questions = .{
+        .{
+            .text = "Do you like the hit game Among Us?",
+            .answers = .{
+                .{
+                    .text = "no",
+                    .feedback = "fuck you",
+                },
+                .{
+                    .text = "yes",
+                    .feedback = "sus",
+                },
+                .{
+                    .text = "maybe",
+                },
+            },
+        },
+        .{
+            .text = "Another question!",
+            .answers = .{
+                .{
+                    .text = "some answer",
+                    .feedback = "cool",
+                },
+                .{
+                    .text = "another one",
+                    .feedback = "also cool",
+                },
+            },
+        },
+    },
+}

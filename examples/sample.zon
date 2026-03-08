@@ -1,0 +1,75 @@
+.{
+    .definitions = .{
+        .candidates = .{
+            .baby_gronk = 116,
+            .the_rizzler = 117,
+        },
+        .states = .{
+            .alabama = 91,
+            .ohio = 97,
+        },
+        .issues = .{
+            .fanum_tax = 42,
+        },
+    },
+    .player_candidate = .baby_gronk,
+    .questions = .{
+        .{
+            .text = "Question 1",
+            .answers = .{
+                .{
+                    .text = "Only in ohio",
+                    .feedback =
+                    \\ohio
+                    \\ohio
+                    ,
+                    .global_effects = .{
+                        .{
+                            .target = .baby_gronk,
+                            .effect = 0.01,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .ohio,
+                            .effects = .{
+                                .{
+                                    .target = .the_rizzler,
+                                    .effect = -0.1,
+                                },
+                            },
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .fanum_tax,
+                            .score = 0.2,
+                            .importance = 0.5,
+                        },
+                    },
+                },
+                .{
+                    .text = "Six seven",
+                    .feedback = "obama have dih",
+                    .global_effects = .{
+                        .{
+                            .target = .the_rizzler,
+                            .effect = 0.9,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .alabama,
+                            .effects = .{
+                                .{
+                                    .target = .the_rizzler,
+                                    .effect = -0.5,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
