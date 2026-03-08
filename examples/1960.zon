@@ -777,7 +777,7 @@
                     },
                     .issue_effects = .{
                         .{
-                            .target = .cold_war,
+                            .issue = .cold_war,
                             .score = -0.5,
                             .importance = 1,
                         },
@@ -787,7 +787,7 @@
                     .text = "I don't know, to be perfectly frank. Things are going well for now, but we will have many challenges to meet in places like Cuba, Lebanon, Latin America, Indochina, and elsewhere.",
                     .issue_effects = .{
                         .{
-                            .target = .cold_war,
+                            .issue = .cold_war,
                             .score = -0.6,
                             .importance = 1,
                         },
@@ -803,12 +803,12 @@
                     },
                     .issue_effects = .{
                         .{
-                            .target = .cold_war,
+                            .issue = .cold_war,
                             .score = -0.7,
                             .importance = 1,
                         },
                         .{
-                            .target = .economy,
+                            .issue = .economy,
                             .score = 0.3,
                             .importance = 1,
                         },
@@ -1544,7 +1544,7 @@
                     .issue_effects = .{
                         .{
                             .issue = .civil_rights,
-                            .effect = 0.55,
+                            .score = 0.55,
                             .importance = 3,
                         },
                     },
@@ -1554,7 +1554,7 @@
                     .issue_effects = .{
                         .{
                             .issue = .civil_rights,
-                            .effect = 0.25,
+                            .score = 0.25,
                             .importance = 3,
                         },
                     },
