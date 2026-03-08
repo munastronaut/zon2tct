@@ -245,8 +245,16 @@ const Transpiler = struct {
                 const eff_arr = ast.fullArrayInit(&buf, effects_node) orelse return;
 
                 for (eff_arr.ast.elements) |sef_node| {
-                    const target_node = findField(ast, sef_node, "target") orelse continue;
-                    const effect_node = findField(ast, sef_node, "effect") orelse continue;
+                    const target_node = findField(ast, sef_node, "target") orelse {
+                        const loc = getNodeLocation(ast, sef_node);
+                        std.process.fatal("no target for state effect! line {d}:{d}", .{ loc.line, loc.column });
+                        continue;
+                    };
+                    const effect_node = findField(ast, sef_node, "effect") orelse {
+                        const loc = getNodeLocation(ast, sef_node);
+                        std.process.fatal("no effect for state effect! line {d}:{d}", .{ loc.line, loc.column });
+                        continue;
+                    };
 
                     const target_id = try self.resolveId(ast, target_node);
                     const raw_effect = getNodeSource(ast, effect_node);
@@ -277,9 +285,18 @@ const Transpiler = struct {
             if (self.ie_pk == STARTING_IE_PK) try self.issue_effects.append(self.allocator, '\n');
 
             for (array.ast.elements) |eff_node| {
-                const issue_node = findField(ast, eff_node, "issue") orelse continue;
-                const score_node = findField(ast, eff_node, "score") orelse continue;
-                const importance_node = findField(ast, eff_node, "importance") orelse continue;
+                const issue_node = findField(ast, eff_node, "issue") orelse {
+                    const loc = getNodeLocation(ast, eff_node);
+                    std.process.fatal("no issue for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                };
+                const score_node = findField(ast, eff_node, "score") orelse {
+                    const loc = getNodeLocation(ast, eff_node);
+                    std.process.fatal("no score for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                };
+                const importance_node = findField(ast, eff_node, "importance") orelse {
+                    const loc = getNodeLocation(ast, eff_node);
+                    std.process.fatal("no importance for issue effect! line {d}:{d}", .{ loc.line, loc.column });
+                };
 
                 const issue_id = try self.resolveId(ast, issue_node);
                 const raw_effect = getNodeSource(ast, score_node);
@@ -314,7 +331,8 @@ const Transpiler = struct {
             if (self.symbols.states.get(key)) |val| return val;
             if (self.symbols.issues.get(key)) |val| return val;
 
-            std.process.fatal("undefined alias used: .{s}", .{key});
+            const loc = getNodeLocation(ast, node);
+            std.process.fatal("undefined alias used: '\x1b[1m.{s}\x1b[0m' at line {d}:{d}", .{ key, loc.line, loc.column });
         }
 
         return std.fmt.parseInt(i32, slice, 10) catch 0;
