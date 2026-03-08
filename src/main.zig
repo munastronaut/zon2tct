@@ -314,8 +314,7 @@ const Transpiler = struct {
             if (self.symbols.states.get(key)) |val| return val;
             if (self.symbols.issues.get(key)) |val| return val;
 
-            std.log.err("undefined alias used: .{s}", .{key});
-            return error.UndefinedAlias;
+            std.process.fatal("undefined alias used: .{s}", .{key});
         }
 
         return std.fmt.parseInt(i32, slice, 10) catch 0;
