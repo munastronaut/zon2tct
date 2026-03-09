@@ -10,37 +10,37 @@ jobs:
     strategy:
       matrix:
         target: [x86_64-linux, aarch64-linux, x86_64-windows, aarch64-windows, x86_64-macos, aarch64-macos]
-  release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+    release:
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Setup
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.16.0-dev.2694+74f361a5c
+        - name: Setup
+          uses: mlugg/setup-zig@v2
+          with:
+            version: 0.16.0-dev.2694+74f361a5c
 
-      - name: Build
-        run: zig build release -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast
+        - name: Build
+          run: zig build release -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast
 
-      - name: Tarball
-        run:
-          tar -cvzf zon2tct-${{ matrix.target }}.tar.gz -C zig-out/bin .
+        - name: Tarball
+          run:
+            tar -cvzf zon2tct-${{ matrix.target }}.tar.gz -C zig-out/bin .
 
-      - name: Zip
-        if: contains(matrix.target, 'windows')
-        run: |
-          cd zig-out/bin
-          zip -r ../../zon2tct-${{ matrix.target }}.zip
+        - name: Zip
+          if: contains(matrix.target, 'windows')
+          run: |
+            cd zig-out/bin
+            zip -r ../../zon2tct-${{ matrix.target }}.zip
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: binaries-${{ matrix.target }}
-          path: zon2tct-*
-          retention-days: 1
+        - name: Upload
+          uses: actions/upload-artifact@v4
+          with:
+            name: binaries-${{ matrix.target }}
+            path: zon2tct-*
+            retention-days: 1
 
   publish:
     needs: build
