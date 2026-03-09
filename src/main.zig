@@ -42,7 +42,7 @@ pub fn main(init: std.process.Init) !void {
         try symbols.populateTable(arena, &ast, defs_node);
 
     if (common.findField(&ast, root_expr_idx, "player_candidate")) |pc_node| {
-        const id = try transpiler.resolveId(&ast, pc_node);
+        const id = try transpiler.resolveId(&ast, pc_node, .candidates);
         transpiler.player_id = try std.fmt.allocPrint(arena, "{d}", .{id});
     }
 

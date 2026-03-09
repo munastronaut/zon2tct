@@ -54,3 +54,55 @@ pub fn populateTable(self: *Self, allocator: Allocator, ast: *Ast, defs_node: As
         }
     }
 }
+
+fn lev(allocator: Allocator, a: []const u8, b: []const u8) !usize {
+    if (a.len < b.len) return lev(allocator, b, a);
+    if (b.len == 0) return a.len;
+
+    const row = try allocator.alloc(usize, b.len + 1);
+    defer allocator.free(row);
+
+    for (row, 0..) |*val, i|
+        val.* = i;
+
+    for (a) |char_a| {
+        var prev_diag = row[0];
+        row[0] += 1;
+
+        for (1..row.len) |j| {
+            const old_row_j = row[j];
+            const cost: usize = if (char_a == b[j - 1]) 0 else 1;
+
+            row[j] = @min(
+                row[j] + 1,
+                row[j - 1] + 1,
+                prev_diag + cost,
+            );
+            prev_diag = old_row_j;
+        }
+    }
+    return row[b.len];
+}
+
+pub fn findSuggestion(self: *Self, allocator: Allocator, typo: []const u8, context: common.Context) ?[]const u8 {
+    var nearest_match: ?[]const u8 = null;
+    var min_dist: usize = 4;
+
+    const map = switch (context) {
+        .candidates => &self.candidates,
+        .states => &self.states,
+        .issues => &self.issues,
+    };
+
+    var it = map.keyIterator();
+    while (it.next()) |key_p| {
+        const key = key_p.*;
+        const dist = lev(allocator, typo, key) catch continue;
+        if (dist < min_dist) {
+            min_dist = dist;
+            nearest_match = key;
+        }
+    }
+
+    return nearest_match;
+}

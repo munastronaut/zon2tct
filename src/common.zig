@@ -15,6 +15,12 @@ pub const Location = struct {
     column: usize,
 };
 
+pub const Context = enum {
+    candidates,
+    states,
+    issues,
+};
+
 pub fn getFieldName(ast: *Ast, val_node_idx: Ast.Node.Index) []const u8 {
     const val_main_tok = ast.nodes.items(.main_token)[@intFromEnum(val_node_idx)];
     var t = val_main_tok - 1;
