@@ -32,7 +32,7 @@ jobs:
         if: contains(matrix.target, 'windows')
         run: |
           cd zig-out/bin
-          zip -r ../../zon2tct-${{ matrix.target }}.zip
+          zip -r ../../zon2tct-${{ matrix.target }}.zip .
 
       - name: Upload
         uses: actions/upload-artifact@v4
