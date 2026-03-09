@@ -41,8 +41,10 @@ pub fn build(b: *std.Build) void {
         const tar_gz = createArchiveStep(b, target_name, ".tar.gz", artifact, mkdir_step);
         release_step.dependOn(&tar_gz.step);
 
-        const zip = createArchiveStep(b, target_name, ".zip", artifact, mkdir_step);
-        release_step.dependOn(&zip.step);
+        if (os == .windows) {
+            const zip = createArchiveStep(b, target_name, ".zip", artifact, mkdir_step);
+            release_step.dependOn(&zip.step);
+        }
     }
 }
 
