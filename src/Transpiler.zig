@@ -161,6 +161,10 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
 
             const target_id = try self.resolveId(ast, target_node);
             const raw_effect = common.getNodeSource(ast, effect_node);
+            const float_eff = std.fmt.parseFloat(f64, raw_effect) catch blk: {
+                try self.collector.report(.@"error", common.getNodeLocation(ast, effect_node), "field 'effect' in global effect must be a float!");
+                break :blk 0.0;
+            };
 
             try self.global_effects.print(self.allocator,
                 \\  {{
@@ -170,11 +174,11 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
                 \\      answer: {d},
                 \\      candidate: {s},
                 \\      affected_candidate: {d},
-                \\      global_multiplier: {s},
+                \\      global_multiplier: {d},
                 \\    }},
                 \\  }},
                 \\
-            , .{ self.ge_pk, a_id, self.player_id, target_id, raw_effect });
+            , .{ self.ge_pk, a_id, self.player_id, target_id, float_eff });
             self.ge_pk += 1;
         }
     }
@@ -205,6 +209,10 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
 
                 const target_id = try self.resolveId(ast, target_node);
                 const raw_effect = common.getNodeSource(ast, effect_node);
+                const float_eff = std.fmt.parseFloat(f64, raw_effect) catch blk: {
+                    try self.collector.report(.@"error", common.getNodeLocation(ast, effect_node), "field 'effect' in state effect must be a float!");
+                    break :blk 0.0;
+                };
 
                 try self.state_effects.print(self.allocator,
                     \\  {{
@@ -215,11 +223,11 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
                     \\      state: {d},
                     \\      candidate: {s},
                     \\      affected_candidate: {d},
-                    \\      state_multiplier: {s},
+                    \\      state_multiplier: {d},
                     \\    }},
                     \\  }},
                     \\
-                , .{ self.se_pk, a_id, state_id, self.player_id, target_id, raw_effect });
+                , .{ self.se_pk, a_id, state_id, self.player_id, target_id, float_eff });
                 self.se_pk += 1;
             }
         }
@@ -246,8 +254,16 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
             };
 
             const issue_id = try self.resolveId(ast, issue_node);
-            const raw_effect = common.getNodeSource(ast, score_node);
+            const raw_score = common.getNodeSource(ast, score_node);
+            const float_score = std.fmt.parseFloat(f64, raw_score) catch blk: {
+                try self.collector.report(.@"error", common.getNodeLocation(ast, score_node), "field 'score' in issue effect must be a float!");
+                break :blk 0.0;
+            };
             const raw_importance = common.getNodeSource(ast, importance_node);
+            const float_importance = std.fmt.parseFloat(f64, raw_importance) catch blk: {
+                try self.collector.report(.@"error", common.getNodeLocation(ast, importance_node), "field 'score' in issue effect must be a float!");
+                break :blk 0.0;
+            };
 
             try self.issue_effects.print(self.allocator,
                 \\  {{
@@ -256,12 +272,12 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
                 \\    fields: {{
                 \\      answer: {d},
                 \\      issue: {d},
-                \\      issue_score: {s},
-                \\      issue_importance: {s},
+                \\      issue_score: {d},
+                \\      issue_importance: {d},
                 \\    }},
                 \\  }},
                 \\
-            , .{ self.ie_pk, a_id, issue_id, raw_effect, raw_importance });
+            , .{ self.ie_pk, a_id, issue_id, float_score, float_importance });
         }
     }
 }

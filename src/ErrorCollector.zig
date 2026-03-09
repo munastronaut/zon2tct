@@ -54,7 +54,7 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
             .warning => 35,
             .note => 90,
         };
-        try stderr.print("\x1b[1m{s}:{d}:{d}: \x1b[{d}m{s}:\x1b[0m\x1b[1m {s}\x1b[0m\n", .{ filename, d.line, d.column, ansi_code, @tagName(d.severity), d.message });
+        try stderr.print("\x1b[1m{s}:{d}:{d}: \x1b[{d}m{s}:\x1b[39m {s}\x1b[0m\n", .{ filename, d.line, d.column, ansi_code, @tagName(d.severity), d.message });
 
         var line_it = std.mem.splitScalar(u8, source, '\n');
         var current_line: usize = 1;
@@ -64,7 +64,7 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
                 try stderr.writeAll(" ");
                 for (0..d.column - 1) |_|
                     try stderr.writeAll(" ");
-                try stderr.print("\x1b[{d}m^\x1b[0m\n", .{ansi_code});
+                try stderr.print("\x1b[32m^\x1b[0m\n", .{});
                 break;
             }
         }
