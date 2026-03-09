@@ -20,6 +20,7 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0-dev.2694+74f361a5c
+          use-cache: true
 
       - name: Build
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --verbose
