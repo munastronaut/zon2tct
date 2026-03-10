@@ -1596,37 +1596,55 @@
                         .{
                             .state = .connecticut,
                             .effects = .{
-                                .target = 0.007,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
                             },
                         },
                         .{
                             .state = .delaware,
                             .effects = .{
-                                .target = 0.007,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
                             },
                         },
                         .{
                             .state = .maryland,
                             .effects = .{
-                                .target = 0.007,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
                             },
                         },
                         .{
                             .state = .new_jersey,
                             .effects = .{
-                                .target = 0.007,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
                             },
                         },
                         .{
                             .state = .new_york,
                             .effects = .{
-                                .target = 0.01,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.01,
+                                },
                             },
                         },
                         .{
                             .state = .pennsylvania,
                             .effects = .{
-                                .target = 0.007,
+                                .{
+                                    .target = .kennedy,
+                                    .effect = 0.007,
+                                },
                             },
                         },
                     },
