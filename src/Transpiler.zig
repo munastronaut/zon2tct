@@ -43,7 +43,6 @@ pub fn init(arena: *std.heap.ArenaAllocator, symbols: *SymbolTable, collector: *
     };
 }
 
-// Incomplete functions beloww
 pub fn transpile(self: *Self, ast: *Ast, question_node: Ast.Node.Index) !void {
     var buffer: [2]Ast.Node.Index = undefined;
     const array = ast.fullArrayInit(&buffer, question_node) orelse return;
@@ -59,7 +58,7 @@ fn processQuestion(self: *Self, ast: *Ast, q_node: Ast.Node.Index) !void {
     const q_loc = common.getNodeLocation(ast, q_node);
 
     const q_text_node = common.findField(ast, q_node, "text") orelse blk: {
-        try self.collector.report(.@"error", .point, q_loc, 1, "question is missing required field 'text'");
+        try self.collector.reportMissingField(q_loc, "question", "text");
         break :blk @as(Ast.Node.Index, @enumFromInt(0));
     };
     const q_text = try common.getNodeString(self.allocator, ast, q_text_node);
@@ -83,7 +82,7 @@ fn processQuestion(self: *Self, ast: *Ast, q_node: Ast.Node.Index) !void {
     , .{ q_id, escaped_desc.items });
 
     const answers_node = common.findField(ast, q_node, "answers") orelse blk: {
-        try self.collector.report(.@"error", .point, q_loc, 1, "question is missing required field 'answers'");
+        try self.collector.reportMissingField(q_loc, "question", "answers");
         break :blk @as(Ast.Node.Index, @enumFromInt(0));
     };
     var buffer: [2]Ast.Node.Index = undefined;
@@ -100,7 +99,7 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
     const a_loc = common.getNodeLocation(ast, a_node);
 
     const a_text_node = common.findField(ast, a_node, "text") orelse blk: {
-        try self.collector.report(.@"error", .point, a_loc, 1, "answer is missing required field 'text'");
+        try self.collector.reportMissingField(a_loc, "answer", "text");
         break :blk @as(Ast.Node.Index, @enumFromInt(0));
     };
     const a_text = try common.getNodeString(self.allocator, ast, a_text_node);
@@ -154,18 +153,20 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
         for (array.ast.elements) |eff_node| {
             const loc = common.getNodeLocation(ast, eff_node);
             const target_node = common.findField(ast, eff_node, "target") orelse blk: {
-                try self.collector.report(.@"error", .point, loc, 1, "global effect is missing required field 'target'");
+                try self.collector.reportMissingField(loc, "global effect", "target");
                 break :blk @as(Ast.Node.Index, @enumFromInt(0));
             };
             const effect_node = common.findField(ast, eff_node, "effect") orelse blk: {
-                try self.collector.report(.@"error", .point, loc, 1, "global effect is missing required field 'effect'");
+                try self.collector.reportMissingField(loc, "global effect", "effect");
                 break :blk @as(Ast.Node.Index, @enumFromInt(0));
             };
 
             const target_id = try self.resolveId(ast, target_node, .candidates);
             const raw_effect = common.getNodeSource(ast, effect_node);
             const float_eff = std.fmt.parseFloat(f64, raw_effect) catch blk: {
-                try self.collector.report(.@"error", .point, common.getNodeLocation(ast, effect_node), 1, "field 'effect' in global effect must be a float!");
+                if (effect_node == @as(Ast.Node.Index, @enumFromInt(0)))
+                    break :blk @as(f64, 0.0);
+                try self.collector.reportFieldTypeMismatch(common.getNodeLocation(ast, effect_node), raw_effect.len, "global effect", "effect", "float");
                 break :blk 0.0;
             };
 
@@ -203,18 +204,20 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
             for (eff_arr.ast.elements) |sef_node| {
                 const sef_loc = common.getNodeLocation(ast, sef_node);
                 const target_node = common.findField(ast, sef_node, "target") orelse blk: {
-                    try self.collector.report(.@"error", .point, sef_loc, 1, "state effect is missing required field 'target'");
+                    try self.collector.reportMissingField(sef_loc, "state effect", "target");
                     break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
                 const effect_node = common.findField(ast, sef_node, "effect") orelse blk: {
-                    try self.collector.report(.@"error", .point, sef_loc, 1, "state effect is missing required field 'effect'");
+                    try self.collector.reportMissingField(sef_loc, "state effect", "effect");
                     break :blk @as(Ast.Node.Index, @enumFromInt(0));
                 };
 
                 const target_id = try self.resolveId(ast, target_node, .candidates);
                 const raw_effect = common.getNodeSource(ast, effect_node);
                 const float_eff = std.fmt.parseFloat(f64, raw_effect) catch blk: {
-                    try self.collector.report(.@"error", .underline, sef_loc, raw_effect.len, "field 'effect' in state effect must be a float!");
+                    if (effect_node == @as(Ast.Node.Index, @enumFromInt(0)))
+                        break :blk @as(f64, 0.0);
+                    try self.collector.reportFieldTypeMismatch(sef_loc, raw_effect.len, "state effect", "effect", "float");
                     break :blk 0.0;
                 };
 
@@ -246,15 +249,15 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
         for (array.ast.elements) |eff_node| {
             const eff_loc = common.getNodeLocation(ast, eff_node);
             const issue_node = common.findField(ast, eff_node, "issue") orelse blk: {
-                try self.collector.report(.@"error", .point, eff_loc, 1, "issue effect is missing required field 'issue'");
+                try self.collector.reportMissingField(eff_loc, "issue effect", "issue");
                 break :blk @as(Ast.Node.Index, @enumFromInt(0));
             };
             const score_node = common.findField(ast, eff_node, "score") orelse blk: {
-                try self.collector.report(.@"error", .point, eff_loc, 1, "issue effect is missing required field 'score'");
+                try self.collector.reportMissingField(eff_loc, "issue effect", "score");
                 break :blk @as(Ast.Node.Index, @enumFromInt(0));
             };
             const importance_node = common.findField(ast, eff_node, "importance") orelse blk: {
-                try self.collector.report(.@"error", .point, eff_loc, 1, "issue effect is missing required field 'importance'");
+                try self.collector.reportMissingField(eff_loc, "issue effect", "importance");
                 break :blk @as(Ast.Node.Index, @enumFromInt(0));
             };
 
@@ -263,12 +266,16 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
             const score_loc = common.getNodeLocation(ast, score_node);
             const importance_loc = common.getNodeLocation(ast, importance_node);
             const float_score = std.fmt.parseFloat(f64, raw_score) catch blk: {
-                try self.collector.report(.@"error", .underline, score_loc, raw_score.len, "field 'score' in issue effect must be a float!");
+                if (score_node == @as(Ast.Node.Index, @enumFromInt(0)))
+                    break :blk @as(f64, 0.0);
+                try self.collector.reportFieldTypeMismatch(score_loc, raw_score.len, "issue effect", "score", "float");
                 break :blk 0.0;
             };
             const raw_importance = common.getNodeSource(ast, importance_node);
             const float_importance = std.fmt.parseFloat(f64, raw_importance) catch blk: {
-                try self.collector.report(.@"error", .underline, importance_loc, raw_score.len, "field 'importance' in issue effect must be a float!");
+                if (importance_node == @as(Ast.Node.Index, @enumFromInt(0)))
+                    break :blk @as(f64, 0.0);
+                try self.collector.reportFieldTypeMismatch(importance_loc, raw_score.len, "issue effect", "importance", "float");
                 break :blk 0.0;
             };
 
@@ -295,25 +302,52 @@ pub fn resolveId(self: *Self, ast: *Ast, node: Ast.Node.Index, context: common.C
     const slice = ast.tokenSlice(tok);
 
     if (tag == .enum_literal) {
-        const key = if (slice[0] == '.') slice[1..] else slice;
+        const key = slice;
+        var key_exists = false;
 
-        if (self.symbols.candidates.get(key)) |val| return val;
-        if (self.symbols.states.get(key)) |val| return val;
-        if (self.symbols.issues.get(key)) |val| return val;
+        const map = switch (context) {
+            .candidates => &self.symbols.candidates,
+            .states => &self.symbols.states,
+            .issues => &self.symbols.issues,
+        };
 
-        const loc = common.getNodeLocation(ast, node);
+        if (map.contains(key)) return map.get(key).?;
 
-        const report_col = loc.column - 1;
-        const report_len = key.len + 1;
+        var other_map: ?common.Context = null;
 
-        const loc2: common.Location = .{ .line = loc.line, .column = report_col };
+        if (self.symbols.candidates.contains(key)) {
+            other_map = .candidates;
+            key_exists = true;
+        }
+        if (self.symbols.states.contains(key)) {
+            other_map = .states;
+            key_exists = true;
+        }
+        if (self.symbols.issues.contains(key)) {
+            other_map = .issues;
+            key_exists = true;
+        }
+
+        const period_tok = tok - 1;
+        const period_loc = ast.tokenLocation(0, period_tok);
+
+        const loc: common.Location = .{ .line = period_loc.line + 1, .column = period_loc.column + 1 };
+
+        const tok_starts = ast.tokens.items(.start);
+        const report_len = (tok_starts[tok] + slice.len) - tok_starts[period_tok];
+
+        if (key_exists and other_map != null) {
+            const msg = try std.fmt.allocPrint(self.allocator, "alias defined in .{s} used in field expecting alias defined in .{s}!", .{ @tagName(other_map.?), @tagName(context) });
+            try self.collector.report(.@"error", .underline, loc, report_len, msg, null);
+            return 0;
+        }
+
         const err_msg = try std.fmt.allocPrint(self.allocator, "undefined alias used: '.{s}'", .{key});
-        try self.collector.report(.@"error", .underline, loc2, report_len, err_msg);
+        try self.collector.report(.@"error", .underline, loc, report_len, err_msg, null);
 
         if (self.symbols.findSuggestion(self.allocator, key, context)) |match| {
             const suggestion = try std.fmt.allocPrint(self.allocator, ".{s}", .{match});
-            const msg = try std.fmt.allocPrint(self.allocator, "did you mean '.{s}'?", .{match});
-            try self.collector.reportSuggestion(loc2, report_len, msg, suggestion);
+            try self.collector.reportSuggestion(loc, report_len, suggestion);
         }
 
         return 0;

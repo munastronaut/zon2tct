@@ -30,6 +30,33 @@ pub fn getFieldName(ast: *Ast, val_node_idx: Ast.Node.Index) []const u8 {
     return ast.tokenSlice(t);
 }
 
+pub fn getFieldNameToken(ast: *Ast, val_node_idx: Ast.Node.Index) Ast.TokenIndex {
+    const val_main_tok = ast.nodes.items(.main_token)[@intFromEnum(val_node_idx)];
+    var t = val_main_tok - 1;
+    while (t > 0) : (t -= 1) {
+        const tag = ast.tokens.items(.tag)[t];
+        if (tag == .identifier)
+            return t;
+        if (tag == .comma or tag == .l_brace)
+            break;
+    }
+    return val_main_tok;
+}
+
+pub fn getFieldStartToken(ast: *Ast, val_node_idx: Ast.Node.Index) Ast.TokenIndex {
+    const val_main_tok = ast.nodes.items(.main_token)[@intFromEnum(val_node_idx)];
+    var t = val_main_tok;
+    while (t > 0) {
+        t -= 1;
+        const tag = ast.tokens.items(.tag)[t];
+        if (tag == .period)
+            return t;
+        if (tag == .comma or tag == .l_brace)
+            break;
+    }
+    return val_main_tok;
+}
+
 pub fn findField(ast: *Ast, struct_node: Ast.Node.Index, target_name: []const u8) ?Ast.Node.Index {
     var buffer: [2]Ast.Node.Index = undefined;
     const info = ast.fullStructInit(&buffer, struct_node) orelse return null;

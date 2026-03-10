@@ -24,22 +24,51 @@ pub fn main(init: std.process.Init) !void {
     const src = try Io.Dir.cwd().readFileAllocOptions(init.io, input_path, allocator, .limited(10 * 1024 * 1024), .@"8", 0);
     defer allocator.free(src);
 
-    var ast = try Ast.parse(allocator, src, .zon);
-    defer ast.deinit(allocator);
-
-    const root_data = ast.nodes.items(.data)[0];
-    const root_expr_idx = root_data.node;
-
     var symbols = SymbolTable.init(allocator);
     defer symbols.deinit();
 
     var collector = ErrorCollector.init(allocator);
     defer collector.deinit();
 
+    var ast = try Ast.parse(allocator, src, .zon);
+    defer ast.deinit(allocator);
+
+    if (ast.errors.len > 0) {
+        for (ast.errors) |err| {
+            const loc_info = ast.tokenLocation(0, err.token);
+            const loc: common.Location = .{ .line = loc_info.line + 1, .column = loc_info.column + 1 };
+
+            const tok_slice = ast.tokenSlice(err.token);
+            const len = if (tok_slice.len > 0) tok_slice.len else 1;
+
+            const msg = switch (err.tag) {
+                // Yes these can be vague, and they can point to the wrong line.
+                // Please suggest better error messages if you see this!
+                .expected_comma_after_field, .expected_comma_after_initializer => "i expected a ',' here to separate these fields.",
+                .expected_token, .expected_initializer => "i expected a token or initializer here.",
+
+                // NOTE TO SELF:
+                // Implement this catch-all if most errors are accounted for:
+                //     i'm confused by the structure, can you check this line?
+                //
+                // I'm keeping this placeholder for debugging, and to see where it comes up the most.
+                else => try std.fmt.allocPrint(allocator, "PLACEHOLDER: {s}\n", .{@tagName(err.tag)}),
+            };
+
+            try collector.report(.@"error", .underline, loc, len, msg, null);
+        }
+
+        try collector.render(init.io, input_path, src);
+        std.process.exit(1);
+    }
+
+    const root_data = ast.nodes.items(.data)[0];
+    const root_expr_idx = root_data.node;
+
     var transpiler = Transpiler.init(init.arena, &symbols, &collector);
 
     if (common.findField(&ast, root_expr_idx, "definitions")) |defs_node|
-        try symbols.populateTable(arena, &ast, defs_node);
+        try symbols.populateTable(arena, &ast, defs_node, &collector);
 
     if (common.findField(&ast, root_expr_idx, "player_candidate")) |pc_node| {
         const id = try transpiler.resolveId(&ast, pc_node, .candidates);

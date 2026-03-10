@@ -12,7 +12,6 @@ const Severity = enum {
 const Caret = enum {
     point,
     underline,
-    range,
 };
 
 const Diagnostics = struct {
@@ -42,7 +41,49 @@ pub fn deinit(self: *Self) void {
     self.diagnostics.deinit(self.allocator);
 }
 
-pub fn report(self: *Self, severity: Severity, style: Caret, loc: Location, length: usize, message: []const u8) !void {
+pub inline fn reportSuggestion(self: *Self, loc: Location, length: usize, match: []const u8) !void {
+    const msg = try std.fmt.allocPrint(
+        self.allocator,
+        "did you mean '{s}'?",
+        .{match},
+    );
+    try self.report(.note, .underline, loc, length, msg, match);
+}
+
+pub inline fn reportMissingField(self: *Self, loc: Location, obj: []const u8, field: []const u8) !void {
+    const msg = try std.fmt.allocPrint(
+        self.allocator,
+        "{s} is missing field '{s}'",
+        .{ obj, field },
+    );
+    try self.report(.@"error", .point, loc, 1, msg, null);
+}
+
+pub inline fn reportFieldTypeMismatch(
+    self: *Self,
+    loc: Location,
+    length: usize,
+    obj: []const u8,
+    field: []const u8,
+    expected: []const u8,
+) !void {
+    const msg = try std.fmt.allocPrint(
+        self.allocator,
+        "field '{s}' in {s} must be a {s}!",
+        .{ field, obj, expected },
+    );
+    try self.report(.@"error", .underline, loc, length, msg, null);
+}
+
+pub fn report(
+    self: *Self,
+    severity: Severity,
+    style: Caret,
+    loc: Location,
+    length: usize,
+    message: []const u8,
+    match: ?[]const u8,
+) !void {
     try self.diagnostics.append(self.allocator, .{
         .severity = severity,
         .style = style,
@@ -50,21 +91,10 @@ pub fn report(self: *Self, severity: Severity, style: Caret, loc: Location, leng
         .column = loc.column,
         .length = length,
         .message = message,
+        .match = match,
     });
     if (severity == .@"error")
         self.has_errors = true;
-}
-
-pub fn reportSuggestion(self: *Self, loc: Location, length: usize, message: []const u8, match: []const u8) !void {
-    try self.diagnostics.append(self.allocator, .{
-        .severity = .note,
-        .style = .range,
-        .line = loc.line,
-        .column = loc.column,
-        .length = length,
-        .message = message,
-        .match = match,
-    });
 }
 
 pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !void {
@@ -98,9 +128,10 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
                     for (0..d.column - 1) |_|
                         try stderr.writeAll(" ");
 
-                    try stderr.writeAll("\x1b[32m");
+                    try stderr.writeAll("\x1b[36m");
 
-                    for (0..replacement.len) |_|
+                    try stderr.writeByte('^');
+                    for (1..replacement.len) |_|
                         try stderr.writeByte('~');
 
                     try stderr.writeAll("\x1b[0m\n");
@@ -111,13 +142,14 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
                         try stderr.writeAll(" ");
 
                     const char: u8 = switch (d.style) {
-                        .point, .underline => '^',
-                        .range => '~',
+                        .point => '^',
+                        .underline => '~',
                     };
 
                     try stderr.writeAll("\x1b[32m");
 
-                    for (0..d.length) |_|
+                    try stderr.writeByte('^');
+                    for (1..d.length) |_|
                         try stderr.writeByte(char);
 
                     try stderr.writeAll("\x1b[0m\n");

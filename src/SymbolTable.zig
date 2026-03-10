@@ -1,6 +1,7 @@
 const std = @import("std");
 const Ast = std.zig.Ast;
 const Allocator = std.mem.Allocator;
+const ErrorCollector = @import("ErrorCollector.zig");
 const common = @import("common.zig");
 
 const Self = @This();
@@ -23,7 +24,7 @@ pub fn deinit(self: *Self) void {
     self.issues.deinit();
 }
 
-pub fn populateTable(self: *Self, allocator: Allocator, ast: *Ast, defs_node: Ast.Node.Index) !void {
+pub fn populateTable(self: *Self, allocator: Allocator, ast: *Ast, defs_node: Ast.Node.Index, collector: *ErrorCollector) !void {
     var buffer: [2]Ast.Node.Index = undefined;
     const defs_info = ast.fullStructInit(&buffer, defs_node) orelse return;
 
@@ -45,6 +46,25 @@ pub fn populateTable(self: *Self, allocator: Allocator, ast: *Ast, defs_node: As
         for (category_info.ast.fields) |item_node_idx| {
             const item_main_tok = ast.nodes.items(.main_token)[@intFromEnum(item_node_idx)];
             const item_name = common.getFieldName(ast, item_node_idx);
+
+            if (target_map.contains(item_name)) {
+                const start_tok = common.getFieldStartToken(ast, item_node_idx);
+                const name_tok = common.getFieldNameToken(ast, item_node_idx);
+
+                const tok_starts = ast.tokens.items(.start);
+                const start_offset = tok_starts[start_tok];
+                const name_offset = tok_starts[name_tok];
+                const name_len = ast.tokenSlice(name_tok).len;
+
+                const report_len = (name_offset - start_offset) + name_len;
+
+                const loc_info = ast.tokenLocation(0, start_tok);
+                const loc: common.Location = .{ .line = loc_info.line + 1, .column = loc_info.column + 1 };
+
+                const msg = try std.fmt.allocPrint(allocator, "duplicate alias definition: '.{s}'", .{item_name});
+                try collector.report(.@"error", .underline, loc, report_len, msg, null);
+                continue;
+            }
 
             const val_str = ast.tokenSlice(item_main_tok);
             const val = try std.fmt.parseInt(i32, val_str, 10);
