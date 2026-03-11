@@ -9,10 +9,9 @@ const ErrorCollector = @import("ErrorCollector.zig");
 const common = @import("common.zig");
 
 pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-    const arena = init.arena.allocator();
+    const allocator = init.arena.allocator();
 
-    const args = try init.minimal.args.toSlice(arena);
+    const args = try init.minimal.args.toSlice(allocator);
     if (args.len < 2) {
         std.debug.print("Usage: {s} <input> [output]\n", .{args[0]}); // I'll use a proper stderr writer for this soon
         return;
@@ -22,16 +21,12 @@ pub fn main(init: std.process.Init) !void {
     const output_path = if (args.len > 2) args[2] else "code2.js";
 
     const src = try Io.Dir.cwd().readFileAllocOptions(init.io, input_path, allocator, .limited(10 * 1024 * 1024), .@"8", 0);
-    defer allocator.free(src);
 
     var symbols = SymbolTable.init(allocator);
-    defer symbols.deinit();
 
     var collector = ErrorCollector.init(allocator);
-    defer collector.deinit();
 
     var ast = try Ast.parse(allocator, src, .zon);
-    defer ast.deinit(allocator);
 
     if (ast.errors.len > 0) {
         for (ast.errors) |err| {
@@ -68,11 +63,11 @@ pub fn main(init: std.process.Init) !void {
     var transpiler = Transpiler.init(init.arena, &symbols, &collector);
 
     if (common.findField(&ast, root_expr_idx, "definitions")) |defs_node|
-        try symbols.populateTable(arena, &ast, defs_node, &collector);
+        try symbols.populateTable(allocator, &ast, defs_node, &collector);
 
     if (common.findField(&ast, root_expr_idx, "player_candidate")) |pc_node| {
         const id = try transpiler.resolveId(&ast, pc_node, .candidates);
-        transpiler.player_id = try std.fmt.allocPrint(arena, "{d}", .{id});
+        transpiler.player_id = try std.fmt.allocPrint(allocator, "{d}", .{id});
     }
 
     if (common.findField(&ast, root_expr_idx, "questions")) |questions_node|
@@ -114,8 +109,7 @@ pub fn main(init: std.process.Init) !void {
         }
         try exported_symbols.appendSlice(allocator, "};\n\n");
         break :blk try exported_symbols.toOwnedSlice(allocator);
-    } else try allocator.dupe(u8, "");
-    defer allocator.free(manifest);
+    } else "";
 
     try output_writer.print(
         \\{s}e ||= campaignTrail_temp;
