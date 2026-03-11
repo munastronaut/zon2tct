@@ -31,4 +31,4 @@ Secondly, it is hard to implement with just a single modding tool. Jet's has sup
 
 I advise writing your CYOA manually in JavaScript, and there are great resources on learning JavaScript, like [javascript.info](https://javascript.info), which I used when I was learning JavaScript.
 
-A more comprehensive explanation can be found [here](ON_CYOA.MD).
+A more comprehensive explanation can be found [here](ON_CYOA.md).
