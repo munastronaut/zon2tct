@@ -1,9 +1,11 @@
 # FAQ
 
 **Q: Does `zon2tct` handle the Code 1?**
+
 No. `zon2tct` mainly focuses on the Code 2 of a mod, which is arguably the most exhausting — the questions, the answers, the feedback, and the effects. Existing tools are sufficient enough for this purpose, like Jet's Code 1 tool.
 
 **Q: Why should I use this over Jet's or other tools?**
+
 I would like to start off by saying, this is not meant to be a replacement for Jet's for the time being. Jet's maturity makes it excel in certain areas like generating the state and issue boilerplate. You should certainly use Jet's alongside `zon2tct`.
 
 This tool offers a different workflow for mod creation and type safety at build time. You should consider using it if you value the following:
@@ -16,9 +18,11 @@ This tool offers a different workflow for mod creation and type safety at build 
 - **Version control.** You are writing your mod in plaintext, which is easily diff-able. This makes it suitable for Git, which you can use to track changes and to collaborate with other modders on a mod team.
 
 **Q: Will you be making a GUI version?**
+
 As of now, not yet. But it is certainly possible to port this to WebAssembly and allow for a web interface, which will be done when this tool is mature enough.
 
 **Q: Does `zon2tct` support CYOA?**
+
 No, and it likely never will in a comprehensive manner. `zon2tct` is a transpiler that converts your data to JavaScript code. Please do not click off, because I have some reasons in not supporting CYOA.
 
 First, `zon2tct` is not meant to be a programming language, it converts all your questions, answers, and the like, to the necessary JavaScript code the game needs.
