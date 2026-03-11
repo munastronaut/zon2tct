@@ -63,6 +63,10 @@ fn processQuestion(self: *Self, ast: *Ast, q_node: Ast.Node.Index) !void {
     };
     const q_text = try common.getNodeString(self.allocator, ast, q_text_node);
 
+    const optional_name = common.findField(ast, q_node, "name");
+    if (optional_name) |opt_name|
+        try self.symbols.manifest.put(try common.getNodeString(self.allocator, ast, opt_name), q_id);
+
     var escaped_desc = try common.escapeChars(self.allocator, q_text);
     defer escaped_desc.deinit(self.allocator);
 
@@ -103,6 +107,10 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
         break :blk @as(Ast.Node.Index, @enumFromInt(0));
     };
     const a_text = try common.getNodeString(self.allocator, ast, a_text_node);
+
+    const optional_name = common.findField(ast, a_node, "name");
+    if (optional_name) |opt_name|
+        try self.symbols.manifest.put(try common.getNodeString(self.allocator, ast, opt_name), q_id);
 
     var escaped_answer = try common.escapeChars(self.allocator, a_text);
     defer escaped_answer.deinit(self.allocator);
@@ -303,7 +311,6 @@ pub fn resolveId(self: *Self, ast: *Ast, node: Ast.Node.Index, context: common.C
 
     if (tag == .enum_literal) {
         const key = slice;
-        var key_exists = false;
 
         const map = switch (context) {
             .candidates => &self.symbols.candidates,
@@ -315,18 +322,12 @@ pub fn resolveId(self: *Self, ast: *Ast, node: Ast.Node.Index, context: common.C
 
         var other_map: ?common.Context = null;
 
-        if (self.symbols.candidates.contains(key)) {
+        if (self.symbols.candidates.contains(key))
             other_map = .candidates;
-            key_exists = true;
-        }
-        if (self.symbols.states.contains(key)) {
+        if (self.symbols.states.contains(key))
             other_map = .states;
-            key_exists = true;
-        }
-        if (self.symbols.issues.contains(key)) {
+        if (self.symbols.issues.contains(key))
             other_map = .issues;
-            key_exists = true;
-        }
 
         const period_tok = tok - 1;
         const period_loc = ast.tokenLocation(0, period_tok);
@@ -336,7 +337,7 @@ pub fn resolveId(self: *Self, ast: *Ast, node: Ast.Node.Index, context: common.C
         const tok_starts = ast.tokens.items(.start);
         const report_len = (tok_starts[tok] + slice.len) - tok_starts[period_tok];
 
-        if (key_exists and other_map != null) {
+        if (other_map != null) {
             const msg = try std.fmt.allocPrint(self.allocator, "alias defined in .{s} used in field expecting alias defined in .{s}!", .{ @tagName(other_map.?), @tagName(context) });
             try self.collector.report(.@"error", .underline, loc, report_len, msg, null);
             return 0;

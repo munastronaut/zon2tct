@@ -9,12 +9,14 @@ const Self = @This();
 candidates: std.StringHashMap(i32),
 states: std.StringHashMap(i32),
 issues: std.StringHashMap(i32),
+manifest: std.StringHashMap(i32),
 
 pub fn init(allocator: Allocator) Self {
     return .{
         .candidates = .init(allocator),
         .states = .init(allocator),
         .issues = .init(allocator),
+        .manifest = .init(allocator),
     };
 }
 
@@ -22,6 +24,7 @@ pub fn deinit(self: *Self) void {
     self.candidates.deinit();
     self.states.deinit();
     self.issues.deinit();
+    self.manifest.deinit();
 }
 
 pub fn populateTable(self: *Self, allocator: Allocator, ast: *Ast, defs_node: Ast.Node.Index, collector: *ErrorCollector) !void {

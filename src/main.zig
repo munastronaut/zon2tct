@@ -90,8 +90,25 @@ pub fn main(init: std.process.Init) !void {
     var writer = output_file.writer(init.io, &output_buffer);
     var output_writer = &writer.interface;
 
+    const manifest = if (symbols.manifest.count() > 0) blk: {
+        var exported_symbols: std.ArrayList(u8) = .empty;
+        try exported_symbols.appendSlice(allocator, "const SYMBOLS = {\n");
+
+        var sym_it = symbols.manifest.iterator();
+        while (sym_it.next()) |entry| {
+            try exported_symbols.print(
+                allocator,
+                "  {s}: {d},\n",
+                .{ entry.key_ptr.*, entry.value_ptr.* },
+            );
+        }
+        try exported_symbols.appendSlice(allocator, "};\n");
+        break :blk try exported_symbols.toOwnedSlice(allocator);
+    } else try allocator.dupe(u8, "");
+    defer allocator.free(manifest);
+
     try output_writer.print(
-        \\e = campaignTrail_temp;
+        \\{s}e ||= campaignTrail_temp;
         \\
         \\e.questions_json = [{s}];
         \\
@@ -111,6 +128,16 @@ pub fn main(init: std.process.Init) !void {
         \\
         \\e.answer_feedback_json = [{s}];
         \\
-    , .{ transpiler.questions.items, transpiler.answers.items, transpiler.global_effects.items, transpiler.issue_effects.items, transpiler.state_effects.items, transpiler.feedbacks.items });
+    ,
+        .{
+            manifest,
+            transpiler.questions.items,
+            transpiler.answers.items,
+            transpiler.global_effects.items,
+            transpiler.issue_effects.items,
+            transpiler.state_effects.items,
+            transpiler.feedbacks.items,
+        },
+    );
     try output_writer.flush();
 }
