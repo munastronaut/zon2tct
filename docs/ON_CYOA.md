@@ -1,6 +1,5 @@
 > *Any sufficiently complicated C or Fortran program contains an ad hoc, informally-specified, bug-ridden, slow implementation of half of Common Lisp.*
-
-\- *Philip Greenspun*
+>\- *Philip Greenspun*
 
 CMake is one of the most used build systems, yet one of the most hated. Its criticisms are not limited to just the syntax. CMake — a declarative DSL meant for clean cross-compilation of C and C++ programs — ended up being Turing complete, most likely by accident. But what does this have to do with *The Campaign Trail* and Choose Your Own Adventure?
 
