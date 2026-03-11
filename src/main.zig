@@ -96,13 +96,23 @@ pub fn main(init: std.process.Init) !void {
 
         var sym_it = symbols.manifest.iterator();
         while (sym_it.next()) |entry| {
-            try exported_symbols.print(
-                allocator,
-                "  {s}: {d},\n",
-                .{ entry.key_ptr.*, entry.value_ptr.* },
-            );
+            const key = entry.key_ptr.*;
+            const value = entry.value_ptr.*;
+            if (common.isValidJSIdentifier(key)) {
+                try exported_symbols.print(
+                    allocator,
+                    "  {s}: {d},\n",
+                    .{ key, value },
+                );
+            } else {
+                try exported_symbols.print(
+                    allocator,
+                    "  \"{s}\": {d},\n",
+                    .{ key, value },
+                );
+            }
         }
-        try exported_symbols.appendSlice(allocator, "};\n");
+        try exported_symbols.appendSlice(allocator, "};\n\n");
         break :blk try exported_symbols.toOwnedSlice(allocator);
     } else try allocator.dupe(u8, "");
     defer allocator.free(manifest);

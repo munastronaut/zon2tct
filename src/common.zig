@@ -179,3 +179,14 @@ pub fn getNodeLocation(ast: *Ast, node: Ast.Node.Index) Location {
         .column = loc.column + 1,
     };
 }
+
+pub fn isValidJSIdentifier(name: []const u8) bool {
+    if (name.len == 0) return false;
+    for (name, 0..) |char, i| {
+        if (i == 0 and std.ascii.isDigit(char))
+            return false;
+        if (!std.ascii.isAlphanumeric(char) and char != '_')
+            return false;
+    }
+    return true;
+}
