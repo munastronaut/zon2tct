@@ -2,7 +2,7 @@
 
 **Q: Does `zon2tct` handle the Code 1?**
 
-No. `zon2tct` mainly focuses on the Code 2 of a mod, which is arguably the most exhausting — the questions, the answers, the feedback, and the effects. Existing tools are sufficient enough for this purpose, like Jet's Code 1 tool.
+No. `zon2tct` mainly focuses on the Code 2 of a mod, which is arguably the most exhausting — the questions, the answers, the feedback, and the effects. Existing tools are sufficient for this purpose, like Jet's Code 1 tool.
 
 **Q: Why should I use this over Jet's or other tools?**
 
@@ -23,12 +23,12 @@ As of now, not yet. But it is certainly possible to port this to WebAssembly and
 
 **Q: Does `zon2tct` support CYOA?**
 
-No, and it likely never will in a comprehensive manner. `zon2tct` is a transpiler that converts your data to JavaScript code. Please do not click off, because I have some reasons in not supporting CYOA.
+No, and it likely never will in a comprehensive manner. `zon2tct` is a program that converts your data to JavaScript code. Please do not click off, because I have some reasons in not supporting CYOA.
 
 First, `zon2tct` is not meant to be a programming language, it converts all your questions, answers, and the like, to the necessary JavaScript code the game needs.
 
 Secondly, it is hard to implement with just a single modding tool. Jet's has support for CYOA, but it is slightly primitive, and you would have to track many things like conditionals, variables, and outcomes.
 
-I advise writing your CYOA manually in JavaScript, and there are great resources on learning JavaScript, like [javascript.info](https://javascript.info), which I used when I was learning JavaScript.
+I recommend writing your CYOA manually in JavaScript, and there are great resources on learning JavaScript, like [javascript.info](https://javascript.info), which I used when I was learning JavaScript.
 
 A more comprehensive explanation can be found [here](ON_CYOA.md).
