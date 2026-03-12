@@ -6,7 +6,7 @@ CMake is one of the most used build systems, yet one of the most hated. Its crit
 
 Alan Turing — then a Master's student at Cambridge — came up with a novel type of "computer". Armed with a strip of tape of infinite length, this machine could implement any arbitrary computer algorithm, meaning, it can basically do any computation. This was later dubbed a *Turing machine*. This abstract machine later became the foundation for "general-purpose programming languages", and some features of these languages mimic the Turing machine. Variables, logic, loops... these are things that are usually applied in TCT modding, if you are coding branches of CYOA.
 
-For a general-purpose programming language to do anything and be, well, general-purpose, it must meet certain criteria. One criterion is that it must be Turing complete, in that, it can simulate a Turing machine. Some of the most notable programming languages are Turing complete. C, C++[^1], Python, and JavaScript.
+For a general-purpose programming language to do anything and be, well, general-purpose, it must meet certain criteria. One criterion is that it must be Turing complete, in that, it can simulate a Turing machine. Some of the most notable programming languages are Turing complete. C, C++, Python, and JavaScript.
 
 JavaScript is a general-purpose programming language, and from that, we can deduce that it is Turing complete. Being the scripting language of the web, it means that for a website to implement basic scripting, it has to use JavaScript. The original *The Campaign Trail* was written in JavaScript, and its descendants have been written in JavaScript ever since.
 
