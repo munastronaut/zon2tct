@@ -23,7 +23,7 @@ As of now, not yet. But it is certainly possible to port this to WebAssembly and
 
 **Q: Does `zon2tct` support CYOA?**
 
-No, and it likely never will in a comprehensive manner. `zon2tct` is a program that converts your data to JavaScript code. Please do not click off, because I have some reasons in not supporting CYOA.
+No, and it likely never will in a comprehensive manner. `zon2tct` is a program that converts your data to JavaScript code. Please do not click off, because I have a few reasons for not supporting CYOA.
 
 First, `zon2tct` is not meant to be a programming language, it converts all your questions, answers, and the like, to the necessary JavaScript code the game needs.
 
