@@ -1,6 +1,9 @@
 .{
+    // You can define your "aliases" here, which are resolved at build time.
+    // Currently, there are only three groups: candidates, states, and issues
     .definitions = .{
         .candidates = .{
+            // `.baby_gronk` will be resolved to the integer 116
             .baby_gronk = 116,
             .the_rizzler = 117,
         },
@@ -12,12 +15,33 @@
             .fanum_tax = 42,
         },
     },
+    // You can define a player candidate, and it must be a valid integer
     .player_candidate = .baby_gronk,
+    // This is where you define your questions.
+    // Questions usually have the following fields:
+    //
+    // [name] - Optional
+    // text - The actual text of the question
+    // answers - An array of answers
     .questions = .{
         .{
-            .text = "Question 1",
+            // You can assign names to your questions and answers to refer back to them
+            // later on in the JavaScript file, if you're implementing CYOA.
+            // The tool will export a JavaScript object inside the output file which
+            // contains the names for the questions or answers.
+            .name = "question_1",
+            .text = "Question 1. First question",
+            // Answers usually have the following fields:
+            //
+            // [name] - Optional
+            // text - The text of the answer
+            // [feedback] - The answer feedback
+            // [global_effects] - An array of global effects
+            // [state_effects] - An array of state effects
+            // [issue_effects] - An array of issue effects
             .answers = .{
                 .{
+                    .name = "answer_1_to_q1",
                     .text = "Only in ohio",
                     .feedback =
                     \\ohio
