@@ -9,7 +9,9 @@ const ErrorCollector = @import("ErrorCollector.zig");
 const common = @import("common.zig");
 
 pub fn main(init: std.process.Init) !void {
-    const allocator = init.arena.allocator();
+    const io = init.io;
+    const arena = init.arena;
+    const allocator = arena.allocator();
 
     const args = try init.minimal.args.toSlice(allocator);
     if (args.len < 2) {
@@ -20,7 +22,7 @@ pub fn main(init: std.process.Init) !void {
     const input_path = args[1];
     const output_path = if (args.len > 2) args[2] else "code2.js";
 
-    const src = try Io.Dir.cwd().readFileAllocOptions(init.io, input_path, allocator, .limited(10 * 1024 * 1024), .@"8", 0);
+    const src = try Io.Dir.cwd().readFileAllocOptions(io, input_path, allocator, .limited(10 * 1024 * 1024), .@"8", 0);
 
     var symbols = SymbolTable.init(allocator);
 
@@ -53,14 +55,14 @@ pub fn main(init: std.process.Init) !void {
             try collector.report(.@"error", .underline, loc, len, msg, null);
         }
 
-        try collector.render(init.io, input_path, src);
+        try collector.render(io, input_path, src);
         std.process.exit(1);
     }
 
     const root_data = ast.nodes.items(.data)[0];
     const root_expr_idx = root_data.node;
 
-    var transpiler = Transpiler.init(init.arena, &symbols, &collector);
+    var transpiler = Transpiler.init(arena, &symbols, &collector);
 
     if (common.findField(&ast, root_expr_idx, "definitions")) |defs_node|
         try symbols.populateTable(allocator, &ast, defs_node, &collector);
@@ -74,44 +76,44 @@ pub fn main(init: std.process.Init) !void {
         try transpiler.transpile(&ast, questions_node);
 
     if (transpiler.collector.has_errors) {
-        try transpiler.collector.render(init.io, input_path, src);
+        try transpiler.collector.render(io, input_path, src);
         std.process.exit(1);
     }
 
-    const output_file = try Io.Dir.cwd().createFile(init.io, output_path, .{});
-    defer output_file.close(init.io);
+    const output_file = try Io.Dir.cwd().createFile(io, output_path, .{});
+    defer output_file.close(io);
 
     var output_buffer: [4096]u8 = undefined;
-    var writer = output_file.writer(init.io, &output_buffer);
-    var output_writer = &writer.interface;
+    var writer = output_file.writer(io, &output_buffer);
+    const output = &writer.interface;
 
     const manifest = if (symbols.manifest.count() > 0) blk: {
-        var exported_symbols: std.ArrayList(u8) = .empty;
-        try exported_symbols.appendSlice(allocator, "const SYMBOLS = {\n");
+        var list: std.ArrayList(u8) = .empty;
+        try list.appendSlice(allocator, "const SYMBOLS = {\n");
 
         var sym_it = symbols.manifest.iterator();
         while (sym_it.next()) |entry| {
             const key = entry.key_ptr.*;
             const value = entry.value_ptr.*;
             if (common.isValidJSIdentifier(key)) {
-                try exported_symbols.print(
+                try list.print(
                     allocator,
                     "  {s}: {d},\n",
                     .{ key, value },
                 );
             } else {
-                try exported_symbols.print(
+                try list.print(
                     allocator,
                     "  \"{s}\": {d},\n",
                     .{ key, value },
                 );
             }
         }
-        try exported_symbols.appendSlice(allocator, "};\n\n");
-        break :blk try exported_symbols.toOwnedSlice(allocator);
+        try list.appendSlice(allocator, "};\n\n");
+        break :blk try list.toOwnedSlice(allocator);
     } else "";
 
-    try output_writer.print(
+    try output.print(
         \\{s}e ||= campaignTrail_temp;
         \\
         \\e.questions_json = [{s}];
@@ -143,5 +145,5 @@ pub fn main(init: std.process.Init) !void {
             transpiler.feedbacks.items,
         },
     );
-    try output_writer.flush();
+    try output.flush();
 }
