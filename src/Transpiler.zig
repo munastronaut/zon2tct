@@ -110,7 +110,7 @@ fn processAnswer(self: *Self, ast: *Ast, a_node: Ast.Node.Index, q_id: i32) !voi
 
     const optional_name = common.findField(ast, a_node, "name");
     if (optional_name) |opt_name|
-        try self.symbols.manifest.put(try common.getNodeString(self.allocator, ast, opt_name), q_id);
+        try self.symbols.manifest.put(try common.getNodeString(self.allocator, ast, opt_name), a_id);
 
     var escaped_answer = try common.escapeChars(self.allocator, a_text);
     defer escaped_answer.deinit(self.allocator);
