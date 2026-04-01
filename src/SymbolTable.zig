@@ -107,7 +107,7 @@ fn lev(allocator: Allocator, a: []const u8, b: []const u8) !usize {
     return row[b.len];
 }
 
-pub fn findSuggestion(self: *Self, allocator: Allocator, typo: []const u8, context: common.Context) ?[]const u8 {
+pub fn findSuggestion(self: *Self, typo: []const u8, context: common.Context) ?[]const u8 {
     var nearest_match: ?[]const u8 = null;
     var min_dist: usize = 4;
 
@@ -116,6 +116,10 @@ pub fn findSuggestion(self: *Self, allocator: Allocator, typo: []const u8, conte
         .states => &self.states,
         .issues => &self.issues,
     };
+
+    var buf: [256]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buf);
+    const allocator = fba.allocator();
 
     var it = map.keyIterator();
     while (it.next()) |key_p| {

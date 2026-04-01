@@ -346,7 +346,7 @@ pub fn resolveId(self: *Self, ast: *Ast, node: Ast.Node.Index, context: common.C
         const err_msg = try std.fmt.allocPrint(self.allocator, "undefined alias used: '.{s}'", .{key});
         try self.collector.report(.@"error", .underline, loc, report_len, err_msg, null);
 
-        if (self.symbols.findSuggestion(self.allocator, key, context)) |match| {
+        if (self.symbols.findSuggestion(key, context)) |match| {
             const suggestion = try std.fmt.allocPrint(self.allocator, ".{s}", .{match});
             try self.collector.reportSuggestion(loc, report_len, suggestion);
         }

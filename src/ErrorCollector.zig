@@ -108,7 +108,10 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
             .warning => 35,
             .note => 90,
         };
-        try stderr.print("\x1b[1m{s}:{d}:{d}: \x1b[{d}m{s}:\x1b[39m {s}\x1b[0m\n", .{ filename, d.line, d.column, ansi_code, @tagName(d.severity), d.message });
+        try stderr.print(
+            "\x1b[1m{s}:{d}:{d}: \x1b[{d}m{s}:\x1b[39m {s}\x1b[0m\n",
+            .{ filename, d.line, d.column, ansi_code, @tagName(d.severity), d.message },
+        );
 
         var line_it = std.mem.splitScalar(u8, source, '\n');
         var current_line: usize = 1;
@@ -124,9 +127,9 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
                     const suffix = if (line_text.len > end_idx) line_text[end_idx..] else "";
 
                     try stderr.print(" {s}{s}{s}\n", .{ prefix, replacement, suffix });
-                    try stderr.writeAll(" ");
+                    try stderr.writeByte(' ');
                     for (0..d.column - 1) |_|
-                        try stderr.writeAll(" ");
+                        try stderr.writeByte(' ');
 
                     try stderr.writeAll("\x1b[36m");
 
@@ -137,7 +140,7 @@ pub fn render(self: *Self, io: Io, filename: []const u8, source: []const u8) !vo
                     try stderr.writeAll("\x1b[0m\n");
                 } else {
                     try stderr.print(" {s}\n", .{line_text});
-                    try stderr.writeAll(" ");
+                    try stderr.writeByte(' ');
                     for (0..d.column - 1) |_|
                         try stderr.writeAll(" ");
 

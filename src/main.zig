@@ -22,7 +22,8 @@ pub fn main(init: std.process.Init) !void {
     const input_path = args[1];
     const output_path = if (args.len > 2) args[2] else "code2.js";
 
-    const src = try Io.Dir.cwd().readFileAllocOptions(io, input_path, allocator, .limited(10 * 1024 * 1024), .@"8", 0);
+    const raw_src = try Io.Dir.cwd().readFileAlloc(io, input_path, allocator, .unlimited);
+    const src = try allocator.dupeSentinel(u8, raw_src, 0);
 
     var symbols = SymbolTable.init(allocator);
 
@@ -55,7 +56,7 @@ pub fn main(init: std.process.Init) !void {
             try collector.report(.@"error", .underline, loc, len, msg, null);
         }
 
-        try collector.render(io, input_path, src);
+        try collector.render(io, input_path, raw_src);
         std.process.exit(1);
     }
 
@@ -76,7 +77,7 @@ pub fn main(init: std.process.Init) !void {
         try transpiler.transpile(&ast, questions_node);
 
     if (transpiler.collector.has_errors) {
-        try transpiler.collector.render(io, input_path, src);
+        try transpiler.collector.render(io, input_path, raw_src);
         std.process.exit(1);
     }
 
