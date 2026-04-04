@@ -388,6 +388,15 @@ test "structs" {
         .newline,
         .r_brace,
     });
+    try testTokenize(
+        \\.{
+        \\    .field = .{
+        \\        .bar = 42,
+        \\    },
+        \\}
+    , &.{
+        .period, .l_brace, .newline, .whitespace, .period, .whitespace, .equal, .whitespace, .period, .l_brace, .newline, .whitespace, .period, .identifier, .whitespace, .equal, .whitespace, .number_literal, .comma, .newline, .r_brace,
+    });
 }
 
 test "newline in char literal" {
