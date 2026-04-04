@@ -24,6 +24,8 @@ pub const Token = struct {
         string_literal,
         multiline_string_literal_line,
         char_literal,
+        line_comment,
+        doc_comment,
     };
 
     /// Location of the token or lexeme.
@@ -48,7 +50,6 @@ pub fn init(buf: [:0]const u8) Self {
 
 const State = enum {
     start,
-    whitespace,
     expect_newline,
     string_literal,
     string_literal_backslash,
@@ -61,6 +62,11 @@ const State = enum {
     int_exponent,
     float,
     float_exponent,
+    slash,
+    line_comment_start,
+    line_comment,
+    doc_comment_start,
+    doc_comment,
     backslash,
     invalid,
 };
@@ -84,18 +90,10 @@ pub fn next(self: *Self) Token {
             } else {
                 continue :state .invalid;
             },
-            '\n' => {
-                result.id = .newline;
+            ' ', '\n', '\r', '\t' => {
                 self.idx += 1;
-            },
-            '\r' => {
-                result.id = .newline;
-                continue :state .expect_newline;
-            },
-            ' ', '\t' => {
-                result.id = .whitespace;
-                self.idx += 1;
-                continue :state .whitespace;
+                result.span.start = self.idx;
+                continue :state .start;
             },
             '"' => {
                 result.id = .string_literal;
@@ -141,20 +139,13 @@ pub fn next(self: *Self) Token {
                 result.id = .plus;
                 self.idx += 1;
             },
+            '/' => continue :state .slash,
             '0'...'9' => {
                 result.id = .number_literal;
                 self.idx += 1;
                 continue :state .int;
             },
             else => continue :state .invalid,
-        },
-
-        .whitespace => switch (self.buf[self.idx]) {
-            ' ', '\t' => {
-                self.idx += 1;
-                continue :state .whitespace;
-            },
-            else => {},
         },
 
         .invalid => {
@@ -165,10 +156,7 @@ pub fn next(self: *Self) Token {
                 } else {
                     continue :state .invalid;
                 },
-                '\n' => {
-                    self.idx += 1;
-                    result.id = .invalid;
-                },
+                '\n' => result.id = .invalid,
                 else => continue :state .invalid,
             }
         },
@@ -186,10 +174,7 @@ pub fn next(self: *Self) Token {
             switch (self.buf[self.idx]) {
                 0 => result.id = .invalid,
                 '\\' => continue :state .multiline_string_literal_line,
-                '\n' => {
-                    self.idx += 1;
-                    result.id = .invalid;
-                },
+                '\n' => result.id = .invalid,
                 else => continue :state .invalid,
             }
         },
@@ -197,15 +182,12 @@ pub fn next(self: *Self) Token {
         .string_literal => {
             self.idx += 1;
             switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
-                    continue :state .invalid;
+                0 => if (self.idx == self.buf.len) {
+                    result.id = .invalid;
                 } else {
-                    result.id = .invalid;
+                    continue :state .invalid;
                 },
-                '\n' => {
-                    self.idx += 1;
-                    result.id = .invalid;
-                },
+                '\n' => result.id = .invalid,
                 '"' => self.idx += 1,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .string_literal,
@@ -223,15 +205,12 @@ pub fn next(self: *Self) Token {
         .char_literal => {
             self.idx += 1;
             switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
-                    continue :state .invalid;
+                0 => if (self.idx == self.buf.len) {
+                    result.id = .invalid;
                 } else {
-                    result.id = .invalid;
+                    continue :state .invalid;
                 },
-                '\n' => {
-                    self.idx += 1;
-                    result.id = .invalid;
-                },
+                '\n' => result.id = .invalid,
                 '\\' => continue :state .char_literal_backslash,
                 '\'' => self.idx += 1,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
@@ -241,15 +220,12 @@ pub fn next(self: *Self) Token {
         .char_literal_backslash => {
             self.idx += 1;
             switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
-                    continue :state .invalid;
+                0 => if (self.idx == self.buf.len) {
+                    result.id = .invalid;
                 } else {
-                    result.id = .invalid;
+                    continue :state .invalid;
                 },
-                '\n' => {
-                    self.idx += 1;
-                    result.id = .invalid;
-                },
+                '\n' => result.id = .invalid,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .char_literal,
             }
@@ -269,6 +245,31 @@ pub fn next(self: *Self) Token {
                 else => continue :state .multiline_string_literal_line,
             }
         },
+
+        .slash => {
+            self.idx += 1;
+            switch (self.buf[self.idx]) {
+                '/' => continue :state .line_comment_start,
+                else => continue :state .invalid,
+            }
+        },
+
+        .line_comment_start => {
+            self.idx += 1;
+            switch (self.buf[self.idx]) {
+                0 => if (self.idx != self.buf.len) {
+                    continue :state .invalid;
+                } else return .{
+                    .id = .eof,
+                    .span = .{ .start = self.idx, .end = self.idx },
+                },
+                '/' => continue :state .doc_comment_start,
+                else => continue :state .line_comment,
+            }
+        },
+        .doc_comment_start => {},
+        .line_comment => {},
+        .doc_comment => {},
 
         .int => switch (self.buf[self.idx]) {
             '.' => continue :state .int_period,
@@ -327,7 +328,11 @@ pub fn next(self: *Self) Token {
                 } else {
                     result.id = .invalid;
                 },
-                '\n' => self.idx += 1,
+                '\n' => {
+                    self.idx += 1;
+                    result.span.start = self.idx;
+                    continue :state .start;
+                },
                 else => continue :state .invalid,
             }
         },
@@ -341,9 +346,7 @@ test "fields and values" {
     try testTokenize(".field = 42", &.{
         .period,
         .identifier,
-        .whitespace,
         .equal,
-        .whitespace,
         .number_literal,
     });
     try testTokenize(
@@ -352,17 +355,12 @@ test "fields and values" {
     , &.{
         .period,
         .identifier,
-        .whitespace,
         .equal,
-        .whitespace,
         .number_literal,
         .comma,
-        .newline,
         .period,
         .identifier,
-        .whitespace,
         .equal,
-        .whitespace,
         .number_literal,
         .comma,
     });
@@ -376,26 +374,41 @@ test "structs" {
     , &.{
         .period,
         .l_brace,
-        .newline,
-        .whitespace,
         .period,
         .identifier,
-        .whitespace,
         .equal,
-        .whitespace,
         .number_literal,
         .comma,
-        .newline,
         .r_brace,
     });
     try testTokenize(
         \\.{
+        \\    .foo = 69,
         \\    .field = .{
         \\        .bar = 42,
         \\    },
         \\}
     , &.{
-        .period, .l_brace, .newline, .whitespace, .period, .whitespace, .equal, .whitespace, .period, .l_brace, .newline, .whitespace, .period, .identifier, .whitespace, .equal, .whitespace, .number_literal, .comma, .newline, .r_brace,
+        .period,
+        .l_brace,
+        .period,
+        .identifier,
+        .equal,
+        .number_literal,
+        .comma,
+        .period,
+        .identifier,
+        .equal,
+        .period,
+        .l_brace,
+        .period,
+        .identifier,
+        .equal,
+        .number_literal,
+        .comma,
+        .r_brace,
+        .comma,
+        .r_brace,
     });
 }
 
@@ -411,12 +424,6 @@ test "newline in string literal" {
         \\"
         \\"
     , &.{ .invalid, .invalid });
-}
-
-test "crlf" {
-    try testTokenize("\n", &.{.newline});
-    try testTokenize("\r\n", &.{.newline});
-    try testTokenize("\r", &.{.invalid});
 }
 
 fn testTokenize(src: [:0]const u8, tok_ids: []const Token.Id) !void {
