@@ -9,8 +9,6 @@ pub const Token = struct {
         invalid,
         equal,
         eof,
-        whitespace,
-        newline,
         period,
         plus,
         minus,
@@ -30,15 +28,15 @@ pub const Token = struct {
 
     /// Location of the token or lexeme.
     pub const Span = struct {
-        start: usize,
-        end: usize,
+        start: u32,
+        end: u32,
     };
 };
 
 const Self = @This();
 
 buf: [:0]const u8,
-idx: usize,
+idx: u32,
 
 /// `buf` is the content of the file.
 pub fn init(buf: [:0]const u8) Self {
