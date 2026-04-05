@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const Lexer = @import("Lexer.zig");
 
 const template =
-    \\{s}token{s} {d}
+    \\{s}token {d}{s}
     \\├─ {s}tag:{s} {s}
     \\╰─ {s}lexeme:{s} '{s}'
     \\
@@ -39,8 +39,8 @@ pub fn main(init: std.process.Init) !void {
         const tok = lexer.next();
         std.debug.print(template, .{
             bold,
-            reset,
             tok_count,
+            reset,
             bold,
             reset,
             @tagName(tok.id),
