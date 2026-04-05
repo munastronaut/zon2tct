@@ -5,10 +5,10 @@ const Allocator = std.mem.Allocator;
 const Lexer = @import("Lexer.zig");
 
 const template =
-    \\
     \\{s}token{s} {d}
     \\├─ {s}tag:{s} {s}
     \\╰─ {s}lexeme:{s} '{s}'
+    \\
     \\
 ;
 
