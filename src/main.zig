@@ -29,6 +29,8 @@ pub fn main(init: std.process.Init) !void {
         else
             Io.Dir.cwd();
 
+        defer if (std.fs.path.isAbsolute(path)) dir.close(io);
+
         const b = try dir.readFileAlloc(io, path, allocator, .unlimited);
         break :blk try allocator.dupeSentinel(u8, b, 0);
     };
