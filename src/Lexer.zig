@@ -22,8 +22,6 @@ pub const Token = struct {
         string_literal,
         multiline_string_literal_line,
         char_literal,
-        line_comment,
-        doc_comment,
     };
 
     /// Location of the token or lexeme.
@@ -261,13 +259,74 @@ pub fn next(self: *Self) Token {
                     .id = .eof,
                     .span = .{ .start = self.idx, .end = self.idx },
                 },
+                '\n' => {
+                    self.idx += 1;
+                    result.span.start = self.idx;
+                    continue :state .start;
+                },
                 '/' => continue :state .doc_comment_start,
+                '\r' => continue :state .expect_newline,
+                0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .line_comment,
             }
         },
-        .doc_comment_start => {},
-        .line_comment => {},
-        .doc_comment => {},
+        .doc_comment_start => {
+            self.idx += 1;
+            switch (self.buf[self.idx]) {
+                0 => if (self.idx != self.buf.len) {
+                    continue :state .invalid;
+                } else return .{
+                    .id = .eof,
+                    .span = .{ .start = self.idx, .end = self.idx },
+                },
+                '\n' => {
+                    self.idx += 1;
+                    result.span.start = self.idx;
+                    continue :state .start;
+                },
+                '\r' => continue :state .expect_newline,
+                0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
+                else => continue :state .line_comment,
+            }
+        },
+        .line_comment => {
+            self.idx += 1;
+            switch (self.buf[self.idx]) {
+                0 => if (self.idx != self.buf.len) {
+                    continue :state .invalid;
+                } else return .{
+                    .id = .eof,
+                    .span = .{ .start = self.idx, .end = self.idx },
+                },
+                '\n' => {
+                    self.idx += 1;
+                    result.span.start = self.idx;
+                    continue :state .start;
+                },
+                '\r' => continue :state .expect_newline,
+                0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
+                else => continue :state .line_comment,
+            }
+        },
+        .doc_comment => {
+            self.idx += 1;
+            switch (self.buf[self.idx]) {
+                0 => if (self.idx != self.buf.len) {
+                    continue :state .invalid;
+                } else return .{
+                    .id = .eof,
+                    .span = .{ .start = self.idx, .end = self.idx },
+                },
+                '\n' => {
+                    self.idx += 1;
+                    result.span.start = self.idx;
+                    continue :state .start;
+                },
+                '\r' => continue :state .expect_newline,
+                0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
+                else => continue :state .doc_comment,
+            }
+        },
 
         .int => switch (self.buf[self.idx]) {
             '.' => continue :state .int_period,
@@ -408,6 +467,21 @@ test "structs" {
         .comma,
         .r_brace,
     });
+}
+
+test "disambiguates multiline strings" {
+    try testTokenize(
+        \\\\Testing,
+        \\\\Qux,
+    , &.{ .multiline_string_literal_line, .multiline_string_literal_line });
+}
+
+test "char literal" {
+    try testTokenize(".foo = 't'", &.{ .period, .identifier, .equal, .char_literal });
+}
+
+test "string literal" {
+    try testTokenize(".foo = \"test\"", &.{ .period, .identifier, .equal, .string_literal });
 }
 
 test "newline in char literal" {
