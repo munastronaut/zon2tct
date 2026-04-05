@@ -8,7 +8,7 @@ const template =
     \\
     \\{s}token{s} {d}
     \\├─ {s}tag:{s} {s}
-    \\└─ {s}lexeme:{s} '{s}'
+    \\╰─ {s}lexeme:{s} '{s}'
     \\
 ;
 
