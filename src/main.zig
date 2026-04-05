@@ -16,22 +16,22 @@ const bold = "\x1b[1m";
 const reset = "\x1b[0m";
 
 pub fn main(init: std.process.Init) !void {
+    const io = init.io;
     const allocator = init.arena.allocator();
+
     var args = init.minimal.args.iterate();
     _ = args.next();
     const path = args.next() orelse std.process.fatal("no input file", .{});
 
-    const file = if (std.fs.path.isAbsolute(path)) blk: {
-        var f = try std.Io.Dir.openFileAbsolute(init.io, path, .{});
-        var r = f.reader(init.io, &.{});
-        var reader = &r.interface;
-        const b = try reader.readAlloc(allocator, try r.getSize());
-        break :blk try allocator.dupeSentinel(u8, b, 0);
-    } else blk: {
-        const b = try std.Io.Dir.cwd().readFileAlloc(init.io, path, allocator, .unlimited);
+    const file = blk: {
+        const dir = if (std.fs.path.isAbsolute(path))
+            try Io.Dir.openDirAbsolute(io, std.fs.path.dirname(path).?, .{})
+        else
+            Io.Dir.cwd();
+
+        const b = try dir.readFileAlloc(io, path, allocator, .unlimited);
         break :blk try allocator.dupeSentinel(u8, b, 0);
     };
-    std.debug.assert(file[file.len] == 0);
 
     var lexer = Lexer.init(file);
     var tok_count: usize = 1;
