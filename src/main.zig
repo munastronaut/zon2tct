@@ -7,7 +7,7 @@ const Lexer = @import("Lexer.zig");
 const template =
     \\{s}token {d}{s}
     \\├─ {s}tag:{s} {s}
-    \\╰─ {s}lexeme:{s} '{s}'
+    \\╰─ {s}lexeme: '{s}{s}{s}'{s}
     \\
     \\
 ;
@@ -47,6 +47,8 @@ pub fn main(init: std.process.Init) !void {
             bold,
             reset,
             lexer.buf[tok.span.start..tok.span.end],
+            bold,
+            reset,
         });
         if (tok.id == .eof) break;
     }
