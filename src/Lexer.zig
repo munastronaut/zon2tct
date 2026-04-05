@@ -25,19 +25,20 @@ pub const Token = struct {
     };
 
     /// Location of the token or lexeme.
+    // There won't be a file larger than 4 gibibytes, right? Right?
     pub const Span = struct {
         start: u32,
         end: u32,
     };
 };
 
-const Self = @This();
+const Lexer = @This();
 
 buf: [:0]const u8,
 idx: u32,
 
 /// `buf` is the content of the file.
-pub fn init(buf: [:0]const u8) Self {
+pub fn init(buf: [:0]const u8) Lexer {
     return .{
         .buf = buf,
         .idx = if (std.mem.startsWith(u8, buf, "\xef\xbb\xbf")) 3 else 0,
@@ -68,7 +69,7 @@ const State = enum {
 };
 
 /// Lexes on-demand, returns a token.
-pub fn next(self: *Self) Token {
+pub fn next(self: *Lexer) Token {
     var result: Token = .{
         .id = undefined,
         .span = .{ .start = self.idx, .end = undefined },
@@ -499,7 +500,7 @@ test "newline in string literal" {
 }
 
 fn testTokenize(src: [:0]const u8, tok_ids: []const Token.Id) !void {
-    var tokenizer = Self.init(src);
+    var tokenizer = Lexer.init(src);
     for (tok_ids) |tok_id| {
         const tok = tokenizer.next();
         try std.testing.expectEqual(tok_id, tok.id);
