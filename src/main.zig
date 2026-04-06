@@ -15,6 +15,8 @@ const template =
 const bold = "\x1b[1m";
 const reset = "\x1b[0m";
 
+var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
@@ -31,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
 
         defer if (std.fs.path.isAbsolute(path)) dir.close(io);
 
-        const b = try dir.readFileAlloc(io, path, allocator, .unlimited);
+        const b = try dir.readFileAlloc(io, path, allocator, .limited(std.math.maxInt(u32)));
         break :blk try allocator.dupeSentinel(u8, b, 0);
     };
 
