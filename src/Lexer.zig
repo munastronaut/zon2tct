@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const Token = struct {
     id: Id,
-    span: Span,
+    loc: Loc,
 
     /// Type of the token.
     pub const Id = enum {
@@ -26,7 +26,7 @@ pub const Token = struct {
 
     /// Location of the token or lexeme.
     // There won't be a file larger than 4 gibibytes, right? Right?
-    pub const Span = struct {
+    pub const Loc = struct {
         start: u32,
         end: u32,
     };
@@ -34,14 +34,14 @@ pub const Token = struct {
 
 const Lexer = @This();
 
-buf: [:0]const u8,
+src: [:0]const u8,
 idx: u32,
 
-/// `buf` is the content of the file.
-pub fn init(buf: [:0]const u8) Lexer {
+/// `src` is the content of the file.
+pub fn init(src: [:0]const u8) Lexer {
     return .{
-        .buf = buf,
-        .idx = if (std.mem.startsWith(u8, buf, "\xef\xbb\xbf")) 3 else 0,
+        .src = src,
+        .idx = if (std.mem.startsWith(u8, src, "\xef\xbb\xbf")) 3 else 0,
     };
 }
 
@@ -72,24 +72,24 @@ const State = enum {
 pub fn next(self: *Lexer) Token {
     var result: Token = .{
         .id = undefined,
-        .span = .{ .start = self.idx, .end = undefined },
+        .loc = .{ .start = self.idx, .end = undefined },
     };
 
-    //@setRuntimeSafety(false);
-    // Handle numbers and strings soon (also multiline strings!)
+    // WIP
+    @setRuntimeSafety(false);
     state: switch (State.start) {
-        .start => switch (self.buf[self.idx]) {
-            0 => if (self.idx == self.buf.len) {
+        .start => switch (self.src[self.idx]) {
+            0 => if (self.idx == self.src.len) {
                 return .{
                     .id = .eof,
-                    .span = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = self.idx, .end = self.idx },
                 };
             } else {
                 continue :state .invalid;
             },
             ' ', '\n', '\r', '\t' => {
                 self.idx += 1;
-                result.span.start = self.idx;
+                result.loc.start = self.idx;
                 continue :state .start;
             },
             '"' => {
@@ -147,8 +147,8 @@ pub fn next(self: *Lexer) Token {
 
         .invalid => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx == self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx == self.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
@@ -160,7 +160,7 @@ pub fn next(self: *Lexer) Token {
 
         .identifier => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 'a'...'z', 'A'...'Z', '_', '0'...'9' => continue :state .identifier,
                 else => {},
             }
@@ -168,7 +168,7 @@ pub fn next(self: *Lexer) Token {
 
         .backslash => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 0 => result.id = .invalid,
                 '\\' => continue :state .multiline_string_literal_line,
                 '\n' => result.id = .invalid,
@@ -178,13 +178,14 @@ pub fn next(self: *Lexer) Token {
 
         .string_literal => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx == self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx == self.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
                 },
                 '\n' => result.id = .invalid,
+                '\\' => continue :state .string_literal_backslash,
                 '"' => self.idx += 1,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .string_literal,
@@ -192,7 +193,7 @@ pub fn next(self: *Lexer) Token {
         },
         .string_literal_backslash => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 0, '\n' => result.id = .invalid,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .string_literal,
@@ -201,8 +202,8 @@ pub fn next(self: *Lexer) Token {
 
         .char_literal => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx == self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx == self.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
@@ -216,8 +217,8 @@ pub fn next(self: *Lexer) Token {
         },
         .char_literal_backslash => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx == self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx == self.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
@@ -230,12 +231,12 @@ pub fn next(self: *Lexer) Token {
 
         .multiline_string_literal_line => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 },
                 '\n' => {},
-                '\r' => if (self.buf[self.idx + 1] != '\n') {
+                '\r' => if (self.src[self.idx + 1] != '\n') {
                     continue :state .invalid;
                 },
                 0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
@@ -245,7 +246,7 @@ pub fn next(self: *Lexer) Token {
 
         .slash => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 '/' => continue :state .line_comment_start,
                 else => continue :state .invalid,
             }
@@ -253,16 +254,16 @@ pub fn next(self: *Lexer) Token {
 
         .line_comment_start => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .span = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = self.idx, .end = self.idx },
                 },
                 '\n' => {
                     self.idx += 1;
-                    result.span.start = self.idx;
+                    result.loc.start = self.idx;
                     continue :state .start;
                 },
                 '/' => continue :state .doc_comment_start,
@@ -273,16 +274,16 @@ pub fn next(self: *Lexer) Token {
         },
         .doc_comment_start => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .span = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = self.idx, .end = self.idx },
                 },
                 '\n' => {
                     self.idx += 1;
-                    result.span.start = self.idx;
+                    result.loc.start = self.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -292,16 +293,16 @@ pub fn next(self: *Lexer) Token {
         },
         .line_comment => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .span = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = self.idx, .end = self.idx },
                 },
                 '\n' => {
                     self.idx += 1;
-                    result.span.start = self.idx;
+                    result.loc.start = self.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -311,16 +312,16 @@ pub fn next(self: *Lexer) Token {
         },
         .doc_comment => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .span = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = self.idx, .end = self.idx },
                 },
                 '\n' => {
                     self.idx += 1;
-                    result.span.start = self.idx;
+                    result.loc.start = self.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -329,7 +330,7 @@ pub fn next(self: *Lexer) Token {
             }
         },
 
-        .int => switch (self.buf[self.idx]) {
+        .int => switch (self.src[self.idx]) {
             '.' => continue :state .int_period,
             '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
                 self.idx += 1;
@@ -340,7 +341,7 @@ pub fn next(self: *Lexer) Token {
         },
         .int_exponent => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 '-', '+' => {
                     self.idx += 1;
                     continue :state .float;
@@ -350,7 +351,7 @@ pub fn next(self: *Lexer) Token {
         },
         .int_period => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
                     self.idx += 1;
                     continue :state .float;
@@ -359,7 +360,7 @@ pub fn next(self: *Lexer) Token {
                 else => self.idx -= 1,
             }
         },
-        .float => switch (self.buf[self.idx]) {
+        .float => switch (self.src[self.idx]) {
             '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
                 self.idx += 1;
                 continue :state .float;
@@ -369,7 +370,7 @@ pub fn next(self: *Lexer) Token {
         },
         .float_exponent => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
+            switch (self.src[self.idx]) {
                 '-', '+' => {
                     self.idx += 1;
                     continue :state .float;
@@ -380,15 +381,15 @@ pub fn next(self: *Lexer) Token {
 
         .expect_newline => {
             self.idx += 1;
-            switch (self.buf[self.idx]) {
-                0 => if (self.idx != self.buf.len) {
+            switch (self.src[self.idx]) {
+                0 => if (self.idx != self.src.len) {
                     continue :state .invalid;
                 } else {
                     result.id = .invalid;
                 },
                 '\n' => {
                     self.idx += 1;
-                    result.span.start = self.idx;
+                    result.loc.start = self.idx;
                     continue :state .start;
                 },
                 else => continue :state .invalid,
@@ -396,7 +397,7 @@ pub fn next(self: *Lexer) Token {
         },
     }
 
-    result.span.end = self.idx;
+    result.loc.end = self.idx;
     return result;
 }
 
@@ -507,6 +508,6 @@ fn testTokenize(src: [:0]const u8, tok_ids: []const Token.Id) !void {
     }
     const last_tok = tokenizer.next();
     try std.testing.expectEqual(Token.Id.eof, last_tok.id);
-    try std.testing.expectEqual(src.len, last_tok.span.start);
-    try std.testing.expectEqual(src.len, last_tok.span.end);
+    try std.testing.expectEqual(src.len, last_tok.loc.start);
+    try std.testing.expectEqual(src.len, last_tok.loc.end);
 }
