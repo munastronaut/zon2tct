@@ -4,17 +4,6 @@ const Allocator = std.mem.Allocator;
 
 const Lexer = @import("Lexer.zig");
 
-const template =
-    \\{s}token {d}{s}
-    \\├─ {s}tag:{s} {s}
-    \\╰─ {s}lexeme: '{s}{s}{s}'{s}
-    \\
-    \\
-;
-
-const bold = "\x1b[1m";
-const reset = "\x1b[0m";
-
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 
 pub fn main(init: std.process.Init) !void {
@@ -37,23 +26,49 @@ pub fn main(init: std.process.Init) !void {
         break :blk try allocator.dupeSentinel(u8, b, 0);
     };
 
+    var stdout_w = Io.File.stdout().writer(init.io, &stdout_buf);
+
+    const clicolor_force = if (init.environ_map.get("CLICOLOR_FORCE")) |v|
+        !std.mem.eql(u8, v, "0")
+    else
+        false;
+
+    const no_color = init.environ_map.contains("NO_COLOR");
+
+    const term_mode = try Io.Terminal.Mode.detect(
+        init.io,
+        stdout_w.file,
+        no_color,
+        clicolor_force,
+    );
+
+    const t: Io.Terminal = .{
+        .mode = term_mode,
+        .writer = &stdout_w.interface,
+    };
+
     var lexer = Lexer.init(file);
     var tok_count: usize = 1;
     while (true) : (tok_count += 1) {
         const tok = lexer.next();
-        std.debug.print(template, .{
-            bold,
-            tok_count,
-            reset,
-            bold,
-            reset,
-            @tagName(tok.id),
-            bold,
-            reset,
-            lexer.buf[tok.span.start..tok.span.end],
-            bold,
-            reset,
-        });
+        try t.setColor(.bold);
+        try t.writer.print("token {d}\n", .{tok_count});
+        try t.setColor(.reset);
+        try t.setColor(.dim);
+        try t.writer.writeAll("├─");
+        try t.setColor(.reset);
+        try t.setColor(.bold);
+        try t.writer.writeAll(" tag:");
+        try t.setColor(.reset);
+        try t.writer.print(" {s}\n", .{@tagName(tok.id)});
+        try t.setColor(.dim);
+        try t.writer.writeAll("╰─");
+        try t.setColor(.reset);
+        try t.setColor(.bold);
+        try t.writer.writeAll(" lexeme:");
+        try t.setColor(.reset);
+        try t.writer.print(" '{s}'\n\n", .{lexer.src[tok.loc.start..tok.loc.end]});
         if (tok.id == .eof) break;
     }
+    try t.writer.flush();
 }
