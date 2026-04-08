@@ -65,9 +65,12 @@ pub fn main(init: std.process.Init) !void {
         try t.writer.writeAll("╰─");
         try t.setColor(.reset);
         try t.setColor(.bold);
-        try t.writer.writeAll(" lexeme:");
+        try t.writer.writeAll(" lexeme: '");
         try t.setColor(.reset);
-        try t.writer.print(" '{s}'\n\n", .{lexer.src[tok.loc.start..tok.loc.end]});
+        try t.writer.print("{s}", .{lexer.src[tok.loc.start..tok.loc.end]});
+        try t.setColor(.bold);
+        try t.writer.writeAll("'\n\n");
+        try t.setColor(.reset);
         if (tok.id == .eof) break;
     }
     try t.writer.flush();
