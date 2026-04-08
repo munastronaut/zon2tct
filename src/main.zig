@@ -46,32 +46,33 @@ pub fn main(init: std.process.Init) !void {
         .mode = term_mode,
         .writer = &stdout_w.interface,
     };
+    const w = t.writer;
 
     var lexer = Lexer.init(file);
     var tok_count: usize = 1;
     while (true) : (tok_count += 1) {
         const tok = lexer.next();
         try t.setColor(.bold);
-        try t.writer.print("token {d}\n", .{tok_count});
+        try w.print("token {d}\n", .{tok_count});
         try t.setColor(.reset);
         try t.setColor(.dim);
-        try t.writer.writeAll("├─");
+        try w.writeAll("├─");
         try t.setColor(.reset);
         try t.setColor(.bold);
-        try t.writer.writeAll(" tag:");
+        try w.writeAll(" tag:");
         try t.setColor(.reset);
-        try t.writer.print(" {s}\n", .{@tagName(tok.id)});
+        try w.print(" {s}\n", .{@tagName(tok.id)});
         try t.setColor(.dim);
-        try t.writer.writeAll("╰─");
+        try w.writeAll("╰─");
         try t.setColor(.reset);
         try t.setColor(.bold);
-        try t.writer.writeAll(" lexeme: '");
+        try w.writeAll(" lexeme: '");
         try t.setColor(.reset);
-        try t.writer.print("{s}", .{lexer.src[tok.loc.start..tok.loc.end]});
+        try w.print("{s}", .{lexer.src[tok.loc.start..tok.loc.end]});
         try t.setColor(.bold);
-        try t.writer.writeAll("'\n\n");
+        try w.writeAll("'\n\n");
         try t.setColor(.reset);
         if (tok.id == .eof) break;
     }
-    try t.writer.flush();
+    try w.flush();
 }
