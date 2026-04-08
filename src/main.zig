@@ -36,7 +36,7 @@ pub fn main(init: std.process.Init) !void {
     const no_color = init.environ_map.contains("NO_COLOR");
 
     const term_mode = try Io.Terminal.Mode.detect(
-        init.io,
+        io,
         stdout_w.file,
         no_color,
         clicolor_force,
