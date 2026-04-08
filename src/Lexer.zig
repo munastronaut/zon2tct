@@ -45,6 +45,30 @@ pub fn init(src: [:0]const u8) Lexer {
     };
 }
 
+pub fn output(self: *Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io.Terminal.SetColorError!void {
+    const w = t.writer;
+    try t.setColor(.bold);
+    try w.print("token {d}\n", .{count});
+    try t.setColor(.reset);
+    try t.setColor(.dim);
+    try w.writeAll("├─");
+    try t.setColor(.reset);
+    try t.setColor(.bold);
+    try w.writeAll(" tag:");
+    try t.setColor(.reset);
+    try w.print(" {s}\n", .{@tagName(tok.id)});
+    try t.setColor(.dim);
+    try w.writeAll("╰─");
+    try t.setColor(.reset);
+    try t.setColor(.bold);
+    try w.writeAll(" lexeme: '");
+    try t.setColor(.reset);
+    try w.print("{s}", .{self.src[tok.loc.start..tok.loc.end]});
+    try t.setColor(.bold);
+    try w.writeAll("'\n\n");
+    try t.setColor(.reset);
+}
+
 const State = enum {
     start,
     expect_newline,
