@@ -5,6 +5,8 @@ const assert = std.debug.assert;
 const Lexer = @import("Lexer.zig");
 const Token = Lexer.Token;
 
+const Parse = @import("Parse.zig");
+
 const Tree = @This();
 
 src: [:0]const u8,
@@ -103,3 +105,46 @@ pub const Node = struct {
         end: ExtraIndex,
     };
 };
+
+pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
+    var toks = Tree.TokenList{};
+    defer toks.deinit(allocator);
+
+    var lexer = Lexer.init(src);
+    while (true) {
+        const tok = lexer.next();
+        try toks.append(allocator, .{
+            .id = tok.id,
+            .start = tok.loc.start,
+        });
+        if (tok.id == .eof) break;
+    }
+
+    var toks_slice = toks.toOwnedSlice();
+    errdefer toks_slice.deinit(allocator);
+    return parseTokens(allocator, src, toks_slice);
+}
+
+pub fn deinit(tree: *Tree, allocator: Allocator) void {
+    tree.tokens.deinit(allocator);
+    tree.nodes.deinit(allocator);
+    allocator.free(tree.extra_data);
+    tree.* = undefined;
+}
+
+pub fn parseTokens(
+    allocator: Allocator,
+    src: [:0]const u8,
+    toks: TokenList.Slice,
+) Allocator.Error!Tree {
+    var parser: Parse = .{
+        .allocator = allocator,
+        .src = src,
+        .toks = toks,
+        .tok_i = 0,
+        .nodes = .{},
+        .extra_data = .{},
+    };
+    defer parser.nodes.deinit(allocator);
+    defer parser.extra_data.deinit(allocator);
+}
