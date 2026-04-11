@@ -54,7 +54,7 @@ pub fn output(self: *Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io
     try w.writeAll("├─");
     try t.setColor(.reset);
     try t.setColor(.bold);
-    try w.writeAll(" tag:");
+    try w.writeAll(" id:");
     try t.setColor(.reset);
     try w.print(" {s}\n", .{@tagName(tok.id)});
     try t.setColor(.dim);
