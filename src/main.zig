@@ -47,7 +47,6 @@ pub fn main(init: std.process.Init) void {
     const output = args.next() orelse std.mem.concat(allocator, u8, &.{ path.stem(input), ".js" }) catch |err| fatalError(err);
 
     const src_dir: Io.Dir = openDirIfAbs(io, input) orelse .cwd();
-
     const src = src_dir.readFileAllocOptions(io, input, allocator, .limited(std.math.maxInt(u32)), .of(u8), 0) catch |err| fatalErrorFilename(input, err);
 
     var stdout_w = Io.File.stdout().writer(io, &stdout_buf);
@@ -81,7 +80,6 @@ pub fn main(init: std.process.Init) void {
     t.writer.flush() catch |err| fatalError(err);
 
     const artifact_dir: Io.Dir = openDirIfAbs(io, output) orelse .cwd();
-
     var artifact_file = artifact_dir.createFile(io, output, .{}) catch |err| fatalError(err);
     var artifact_w = artifact_file.writer(io, &artifact_buf);
     const artifact = &artifact_w.interface;
