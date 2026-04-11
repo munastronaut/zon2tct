@@ -42,10 +42,21 @@ pub fn main(init: std.process.Init) void {
     var args = init.minimal.args.iterate();
     _ = args.next();
     const input = args.next() orelse fatal("no input file", .{});
-    const output = args.next() orelse std.mem.concat(allocator, u8, &.{ path.stem(input), ".js" }) catch |err| fatalError(err);
+    const output = args.next() orelse std.mem.concat(
+        allocator,
+        u8,
+        &.{ path.stem(input), ".js" },
+    ) catch |err| fatalError(err);
 
     const src_dir: Io.Dir = openDirIfAbs(io, input) orelse .cwd();
-    const src = src_dir.readFileAllocOptions(io, input, allocator, .limited(std.math.maxInt(u32)), .of(u8), 0) catch |err| fatalErrorFilename(input, err);
+    const src = src_dir.readFileAllocOptions(
+        io,
+        input,
+        allocator,
+        .limited(std.math.maxInt(u32)),
+        .of(u8),
+        0,
+    ) catch |err| fatalErrorFilename(input, err);
 
     var stdout_w = Io.File.stdout().writer(io, &stdout_buf);
 
