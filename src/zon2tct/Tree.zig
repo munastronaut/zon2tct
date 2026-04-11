@@ -21,6 +21,8 @@ pub const TokenList = std.MultiArrayList(struct {
 });
 pub const NodeList = std.MultiArrayList(Node);
 
+pub const ByteOffset = u32;
+
 pub const TokenIndex = u32;
 pub const OptionalTokenIndex = enum(u32) {
     none = std.math.maxInt(u32),
@@ -106,6 +108,17 @@ pub const Node = struct {
     };
 };
 
+pub const Location = struct {
+    line: u32,
+    column: u32,
+    line_start: u32,
+    line_end: u32,
+};
+
+pub fn tokenStart(tree: *const Tree, token_index: TokenIndex) ByteOffset {
+    return tree.tokens.items(.start)[token_index];
+}
+
 pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
     var toks = Tree.TokenList{};
     defer toks.deinit(allocator);
@@ -135,16 +148,63 @@ pub fn deinit(tree: *Tree, allocator: Allocator) void {
 pub fn parseTokens(
     allocator: Allocator,
     src: [:0]const u8,
-    toks: TokenList.Slice,
+    tokens: TokenList.Slice,
 ) Allocator.Error!Tree {
     var parser: Parse = .{
         .allocator = allocator,
         .src = src,
-        .toks = toks,
+        .tokens = tokens,
         .tok_i = 0,
         .nodes = .{},
         .extra_data = .{},
+        .scratch = .{},
     };
     defer parser.nodes.deinit(allocator);
     defer parser.extra_data.deinit(allocator);
+    defer parser.scratch.deinit(allocator);
+
+    const extra_data = try parser.extra_data.toOwnedSlice(allocator);
+    errdefer allocator.free(extra_data);
+
+    return .{
+        .src = src,
+        .tokens = tokens,
+        .nodes = parser.nodes.toOwnedSlice(),
+        .extra_data = extra_data,
+    };
+}
+
+pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, token_index: TokenIndex) Location {
+    var loc: Location = .{
+        .line = 1,
+        .column = 1,
+        .line_start = start_offset,
+        .line_end = tree.src.len,
+    };
+    const tok_start = tree.tokenStart(token_index);
+
+    while (std.mem.findScalarPos(u8, tree.src, loc.line_start, '\n')) |i| {
+        if (i >= tok_start) break;
+        loc.line += 1;
+        loc.line_start = i + 1;
+    }
+
+    const offset = loc.line_start;
+    for (tree.src[offset..], 0..) |c, i| {
+        if (i + offset == tok_start) {
+            loc.line_end = i + offset;
+            while (loc.line_end < tree.src.len and tree.src[loc.line_end] != '\n')
+                loc.line_end += 1;
+
+            return loc;
+        }
+        if (c == '\n') {
+            loc.line += 1;
+            loc.column = 1;
+            loc.line_start = i + 1;
+        } else {
+            loc.column += 1;
+        }
+    }
+    return loc;
 }
