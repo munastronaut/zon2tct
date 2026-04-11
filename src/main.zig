@@ -82,6 +82,6 @@ pub fn main(init: std.process.Init) !void {
     var artifact_w = artifact_file.writer(io, &artifact_buf);
     const artifact = &artifact_w.interface;
 
-    try artifact.writeAll("TEST TEST");
+    try artifact.writeAll("const noop = () => {};\nnoop();");
     try artifact.flush();
 }
