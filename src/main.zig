@@ -1,10 +1,34 @@
 const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
+const path = std.fs.path;
 
 const Lexer = @import("Lexer.zig");
 
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
+var artifact_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
+
+fn errorDescription(err: anyerror) []const u8 {
+    return switch (err) {
+        error.FileNotFound => "no such file or directory",
+        error.NotDir => "not a directory",
+        error.IsDir => "is a directory",
+        else => @errorName(err),
+    };
+}
+
+fn fatalError(name: []const u8, err: anyerror) noreturn {
+    const desc = errorDescription(err);
+    std.process.fatal("{s}: {s}", .{ name, desc });
+}
+
+fn initDirectory(io: Io, name: []const u8) Io.Dir {
+    if (path.isAbsolute(name)) {
+        const dirname = path.dirname(name).?;
+        return Io.Dir.openDirAbsolute(io, dirname, .{}) catch |err| fatalError(dirname, err);
+    }
+    return Io.Dir.cwd();
+}
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -12,17 +36,13 @@ pub fn main(init: std.process.Init) !void {
 
     var args = init.minimal.args.iterate();
     _ = args.next();
-    const path = args.next() orelse std.process.fatal("no input file", .{});
+    const input = args.next() orelse std.process.fatal("no input file", .{});
+    const output = args.next() orelse try std.mem.concat(allocator, u8, &.{ path.stem(input), ".js" });
 
-    const file = blk: {
-        const dir = if (std.fs.path.isAbsolute(path))
-            try Io.Dir.openDirAbsolute(io, std.fs.path.dirname(path).?, .{})
-        else
-            Io.Dir.cwd();
+    const src_dir = initDirectory(io, input);
 
-        defer if (std.fs.path.isAbsolute(path)) dir.close(io);
-
-        const b = try dir.readFileAlloc(io, path, allocator, .limited(std.math.maxInt(u32)));
+    const src = blk: {
+        const b = src_dir.readFileAlloc(io, input, allocator, .limited(std.math.maxInt(u32))) catch |err| fatalError(input, err);
         break :blk try allocator.dupeSentinel(u8, b, 0);
     };
 
@@ -47,7 +67,7 @@ pub fn main(init: std.process.Init) !void {
         .writer = &stdout_w.interface,
     };
 
-    var lexer = Lexer.init(file);
+    var lexer = Lexer.init(src);
     var tok_count: usize = 1;
     while (true) : (tok_count += 1) {
         const tok = lexer.next();
@@ -55,4 +75,13 @@ pub fn main(init: std.process.Init) !void {
         if (tok.id == .eof) break;
     }
     try t.writer.flush();
+
+    const artifact_dir = initDirectory(io, output);
+
+    var artifact_file = try artifact_dir.createFile(io, output, .{});
+    var artifact_w = artifact_file.writer(io, &artifact_buf);
+    const artifact = &artifact_w.interface;
+
+    try artifact.writeAll("TEST TEST");
+    try artifact.flush();
 }
