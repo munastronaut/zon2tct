@@ -41,10 +41,7 @@ pub fn main(init: std.process.Init) !void {
 
     const src_dir = initDirectory(io, input);
 
-    const src = blk: {
-        const b = src_dir.readFileAlloc(io, input, allocator, .limited(std.math.maxInt(u32))) catch |err| fatalError(input, err);
-        break :blk try allocator.dupeSentinel(u8, b, 0);
-    };
+    const src = src_dir.readFileAllocOptions(io, input, allocator, .limited(std.math.maxInt(u32)), .of(u8), 0) catch |err| fatalError(input, err);
 
     var stdout_w = Io.File.stdout().writer(init.io, &stdout_buf);
 
