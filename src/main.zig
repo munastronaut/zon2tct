@@ -29,11 +29,9 @@ fn fatalError(err: anyerror) noreturn {
 }
 
 fn openDirIfAbs(io: Io, name: []const u8) ?Io.Dir {
-    if (path.isAbsolute(name)) {
-        const dirname = path.dirname(name).?;
-        return Io.Dir.openDirAbsolute(io, dirname, .{}) catch |err| fatalErrorFilename(dirname, err);
-    }
-    return null;
+    if (!path.isAbsolute(name)) return null;
+    const dirname = path.dirname(name) orelse name;
+    return Io.Dir.openDirAbsolute(io, dirname, .{}) catch |err| fatalErrorFilename(dirname, err);
 }
 
 pub fn main(init: std.process.Init) void {
