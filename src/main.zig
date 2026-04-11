@@ -22,7 +22,7 @@ fn fatalError(name: []const u8, err: anyerror) noreturn {
     std.process.fatal("{s}: {s}", .{ name, desc });
 }
 
-fn openDirectory(io: Io, name: []const u8) ?Io.Dir {
+fn openDirIfAbs(io: Io, name: []const u8) ?Io.Dir {
     if (path.isAbsolute(name)) {
         const dirname = path.dirname(name).?;
         return Io.Dir.openDirAbsolute(io, dirname, .{}) catch |err| fatalError(dirname, err);
@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init) !void {
     const input = args.next() orelse std.process.fatal("no input file", .{});
     const output = args.next() orelse try std.mem.concat(allocator, u8, &.{ path.stem(input), ".js" });
 
-    const src_dir: Io.Dir = openDirectory(io, input) orelse .cwd();
+    const src_dir: Io.Dir = openDirIfAbs(io, input) orelse .cwd();
 
     const src = src_dir.readFileAllocOptions(io, input, allocator, .limited(std.math.maxInt(u32)), .of(u8), 0) catch |err| fatalError(input, err);
 
@@ -73,7 +73,7 @@ pub fn main(init: std.process.Init) !void {
     }
     try t.writer.flush();
 
-    const artifact_dir: Io.Dir = openDirectory(io, output) orelse .cwd();
+    const artifact_dir: Io.Dir = openDirIfAbs(io, output) orelse .cwd();
 
     var artifact_file = try artifact_dir.createFile(io, output, .{});
     var artifact_w = artifact_file.writer(io, &artifact_buf);
