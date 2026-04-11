@@ -83,11 +83,18 @@ pub fn main(init: std.process.Init) void {
     var tok_count: usize = 1;
     while (true) : (tok_count += 1) {
         const tok = lexer.next();
-        lexer.output(t, tok, tok_count) catch |err| fatalError(err);
+        lexer.output(t, tok, tok_count) catch |err| switch (err) {
+            // user probably just closed the pipe...
+            // doesn't matter that we're ignoring this error because
+            // we're gonna get rid of this eventually
+            // and this is just for debugging so like, lol
+            error.WriteFailed => {},
+            else => fatalError(err),
+        };
         if (tok.id == .eof) break;
     }
-    t.writer.flush() catch |err| fatalError(err);
-
+    // same thing as above
+    t.writer.flush() catch {};
     const artifact_dir: Io.Dir = openDirIfAbs(io, output) orelse .cwd();
     var artifact_file = artifact_dir.createFile(io, output, .{}) catch |err| fatalError(err);
     var artifact_w = artifact_file.writer(io, &artifact_buf);
