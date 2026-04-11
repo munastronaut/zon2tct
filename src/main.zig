@@ -2,9 +2,9 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const path = std.fs.path;
-const fatal = std.process.fatal;
 
-const Lexer = @import("Lexer.zig");
+const zon2tct = @import("zon2tct.zig");
+const Lexer = zon2tct.Lexer;
 
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 var artifact_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
@@ -21,11 +21,11 @@ fn errorDescription(err: anyerror) []const u8 {
 }
 
 fn fatalErrorFilename(name: []const u8, err: anyerror) noreturn {
-    fatal("{s}: {s}", .{ name, errorDescription(err) });
+    std.process.fatal("{s}: {s}", .{ name, errorDescription(err) });
 }
 
 fn fatalError(err: anyerror) noreturn {
-    fatal("{s}", .{errorDescription(err)});
+    std.process.fatal("{s}", .{errorDescription(err)});
 }
 
 fn openDirIfAbs(io: Io, name: []const u8) ?Io.Dir {
@@ -41,7 +41,7 @@ pub fn main(init: std.process.Init) void {
 
     var args = init.minimal.args.iterate();
     _ = args.next();
-    const input = args.next() orelse fatal("no input file", .{});
+    const input = args.next() orelse std.process.fatal("no input file", .{});
     const output = args.next() orelse std.mem.concat(
         allocator,
         u8,
