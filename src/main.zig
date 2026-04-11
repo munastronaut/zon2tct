@@ -31,6 +31,7 @@ fn openDirIfAbs(io: Io, name: []const u8) ?Io.Dir {
 }
 
 pub fn main(init: std.process.Init) !void {
+    const env = init.environ_map;
     const io = init.io;
     const allocator = init.arena.allocator();
 
@@ -43,14 +44,14 @@ pub fn main(init: std.process.Init) !void {
 
     const src = src_dir.readFileAllocOptions(io, input, allocator, .limited(std.math.maxInt(u32)), .of(u8), 0) catch |err| fatalError(input, err);
 
-    var stdout_w = Io.File.stdout().writer(init.io, &stdout_buf);
+    var stdout_w = Io.File.stdout().writer(io, &stdout_buf);
 
-    const clicolor_force = if (init.environ_map.get("CLICOLOR_FORCE")) |v|
+    const clicolor_force = if (env.get("CLICOLOR_FORCE")) |v|
         !std.mem.eql(u8, v, "0")
     else
         false;
 
-    const no_color = init.environ_map.contains("NO_COLOR");
+    const no_color = env.contains("NO_COLOR");
 
     const term_mode = try Io.Terminal.Mode.detect(
         io,
