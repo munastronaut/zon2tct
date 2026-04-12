@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init) void {
     const io = init.io;
     const allocator = init.arena.allocator();
 
-    var args = init.minimal.args.iterate();
+    var args = init.minimal.args.iterateAllocator(allocator) catch |err| fatalError(err);
     _ = args.next();
     const input = args.next() orelse std.process.fatal("no input file", .{});
     const output = args.next() orelse std.mem.concat(
