@@ -3,7 +3,9 @@ const Allocator = std.mem.Allocator;
 
 const Parse = @This();
 
-const Tree = @import("Tree.zig");
+const zon2tct = @import("../zon2tct.zig");
+
+const Tree = zon2tct.Tree;
 const Node = Tree.Node;
 const Token = Tree.Token;
 const TokenIndex = Tree.TokenIndex;

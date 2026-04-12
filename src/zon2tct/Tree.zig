@@ -2,10 +2,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const Lexer = @import("Lexer.zig");
+const zon2tct = @import("../zon2tct.zig");
+
+const Lexer = zon2tct.Lexer;
 const Token = Lexer.Token;
 
-const Parse = @import("Parse.zig");
+const Parse = zon2tct.Parse;
 
 const Tree = @This();
 
