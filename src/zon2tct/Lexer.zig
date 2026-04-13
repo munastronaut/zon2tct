@@ -426,13 +426,13 @@ pub fn next(self: *Lexer) Token {
 }
 
 test "fields and values" {
-    try testTokenize(".field = 42", &.{
+    try testLex(".field = 42", &.{
         .period,
         .identifier,
         .equal,
         .number_literal,
     });
-    try testTokenize(
+    try testLex(
         \\.foo = 42,
         \\.bar = 69,
     , &.{
@@ -450,7 +450,7 @@ test "fields and values" {
 }
 
 test "structs" {
-    try testTokenize(
+    try testLex(
         \\.{
         \\    .foo = 42,
         \\}
@@ -464,7 +464,7 @@ test "structs" {
         .comma,
         .r_brace,
     });
-    try testTokenize(
+    try testLex(
         \\.{
         \\    .foo = 69,
         \\    .field = .{
@@ -496,41 +496,41 @@ test "structs" {
 }
 
 test "disambiguates multiline strings" {
-    try testTokenize(
+    try testLex(
         \\\\Testing,
         \\\\Qux,
     , &.{ .multiline_string_literal_line, .multiline_string_literal_line });
 }
 
 test "char literal" {
-    try testTokenize(".foo = 't'", &.{ .period, .identifier, .equal, .char_literal });
+    try testLex(".foo = 't'", &.{ .period, .identifier, .equal, .char_literal });
 }
 
 test "string literal" {
-    try testTokenize(".foo = \"test\"", &.{ .period, .identifier, .equal, .string_literal });
+    try testLex(".foo = \"test\"", &.{ .period, .identifier, .equal, .string_literal });
 }
 
 test "newline in char literal" {
-    try testTokenize(
+    try testLex(
         \\'
         \\'
     , &.{ .invalid, .invalid });
 }
 
 test "newline in string literal" {
-    try testTokenize(
+    try testLex(
         \\"
         \\"
     , &.{ .invalid, .invalid });
 }
 
-fn testTokenize(src: [:0]const u8, tok_ids: []const Token.Id) !void {
-    var tokenizer = Lexer.init(src);
+fn testLex(src: [:0]const u8, tok_ids: []const Token.Id) !void {
+    var lexer = Lexer.init(src);
     for (tok_ids) |tok_id| {
-        const tok = tokenizer.next();
+        const tok = lexer.next();
         try std.testing.expectEqual(tok_id, tok.id);
     }
-    const last_tok = tokenizer.next();
+    const last_tok = lexer.next();
     try std.testing.expectEqual(Token.Id.eof, last_tok.id);
     try std.testing.expectEqual(src.len, last_tok.loc.start);
     try std.testing.expectEqual(src.len, last_tok.loc.end);
