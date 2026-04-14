@@ -1,7 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
-const path = std.fs.path;
 
 const zon2tct = @import("zon2tct.zig");
 const Lexer = zon2tct.Lexer;
@@ -28,12 +27,6 @@ fn fatalError(err: anyerror) noreturn {
     std.process.fatal("{s}", .{errorDescription(err)});
 }
 
-fn openDirIfAbs(io: Io, name: []const u8) ?Io.Dir {
-    if (!path.isAbsolute(name)) return null;
-    const dirname = path.dirname(name) orelse name;
-    return Io.Dir.openDirAbsolute(io, dirname, .{}) catch |err| fatalErrorFilename(dirname, err);
-}
-
 pub fn main(init: std.process.Init) void {
     const env = init.environ_map;
     const io = init.io;
@@ -45,11 +38,11 @@ pub fn main(init: std.process.Init) void {
     const output = args.next() orelse std.mem.concat(
         allocator,
         u8,
-        &.{ path.stem(input), ".js" },
+        &.{ std.fs.path.stem(input), ".js" },
     ) catch |err| fatalError(err);
 
-    const src_dir: Io.Dir = openDirIfAbs(io, input) orelse .cwd();
-    const src = src_dir.readFileAllocOptions(
+    const cwd = Io.Dir.cwd();
+    const src = cwd.readFileAllocOptions(
         io,
         input,
         allocator,
@@ -95,8 +88,7 @@ pub fn main(init: std.process.Init) void {
     }
     // same thing as above
     t.writer.flush() catch {};
-    const artifact_dir: Io.Dir = openDirIfAbs(io, output) orelse .cwd();
-    var artifact_file = artifact_dir.createFile(io, output, .{}) catch |err| fatalError(err);
+    var artifact_file = cwd.createFile(io, output, .{}) catch |err| fatalError(err);
     var artifact_w = artifact_file.writer(io, &artifact_buf);
     const artifact = &artifact_w.interface;
 
