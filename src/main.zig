@@ -88,6 +88,7 @@ pub fn main(init: std.process.Init) void {
     }
     // same thing as above
     t.writer.flush() catch {};
+
     var artifact_file = cwd.createFile(io, output, .{}) catch |err| fatalError(err);
     var artifact_w = artifact_file.writer(io, &artifact_buf);
     const artifact = &artifact_w.interface;
