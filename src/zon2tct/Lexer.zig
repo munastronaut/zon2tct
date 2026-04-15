@@ -45,7 +45,7 @@ pub fn init(src: [:0]const u8) Lexer {
     };
 }
 
-pub fn output(self: *const Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io.Terminal.SetColorError!void {
+pub fn output(l: *const Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io.Terminal.SetColorError!void {
     const w = t.writer;
     try t.setColor(.bold);
     try w.print("token {d}\n", .{count});
@@ -63,7 +63,7 @@ pub fn output(self: *const Lexer, t: std.Io.Terminal, tok: Token, count: usize) 
     try t.setColor(.bold);
     try w.writeAll(" lexeme: '");
     try t.setColor(.reset);
-    try w.print("{s}", .{self.src[tok.loc.start..tok.loc.end]});
+    try w.print("{s}", .{l.src[tok.loc.start..tok.loc.end]});
     try t.setColor(.bold);
     try w.writeAll("'\n\n");
     try t.setColor(.reset);
@@ -93,27 +93,27 @@ const State = enum {
 };
 
 /// Lexes on-demand, returns a token.
-pub fn next(self: *Lexer) Token {
+pub fn next(l: *Lexer) Token {
     var result: Token = .{
         .id = undefined,
-        .loc = .{ .start = self.idx, .end = undefined },
+        .loc = .{ .start = l.idx, .end = undefined },
     };
 
     // WIP
     @setRuntimeSafety(false);
     state: switch (State.start) {
-        .start => switch (self.src[self.idx]) {
-            0 => if (self.idx == self.src.len) {
+        .start => switch (l.src[l.idx]) {
+            0 => if (l.idx == l.src.len) {
                 return .{
                     .id = .eof,
-                    .loc = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = l.idx, .end = l.idx },
                 };
             } else {
                 continue :state .invalid;
             },
             ' ', '\n', '\r', '\t' => {
-                self.idx += 1;
-                result.loc.start = self.idx;
+                l.idx += 1;
+                result.loc.start = l.idx;
                 continue :state .start;
             },
             '"' => {
@@ -130,7 +130,7 @@ pub fn next(self: *Lexer) Token {
             },
             '=' => {
                 result.id = .equal;
-                self.idx += 1;
+                l.idx += 1;
             },
             '\\' => {
                 result.id = .multiline_string_literal_line;
@@ -138,41 +138,41 @@ pub fn next(self: *Lexer) Token {
             },
             ',' => {
                 result.id = .comma;
-                self.idx += 1;
+                l.idx += 1;
             },
             '{' => {
                 result.id = .l_brace;
-                self.idx += 1;
+                l.idx += 1;
             },
             '}' => {
                 result.id = .r_brace;
-                self.idx += 1;
+                l.idx += 1;
             },
             '.' => {
                 result.id = .period;
-                self.idx += 1;
+                l.idx += 1;
             },
             '-' => {
                 result.id = .minus;
-                self.idx += 1;
+                l.idx += 1;
             },
             '+' => {
                 result.id = .plus;
-                self.idx += 1;
+                l.idx += 1;
             },
             '/' => continue :state .slash,
             '0'...'9' => {
                 result.id = .number_literal;
-                self.idx += 1;
+                l.idx += 1;
                 continue :state .int;
             },
             else => continue :state .invalid,
         },
 
         .invalid => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx == self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx == l.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
@@ -183,16 +183,16 @@ pub fn next(self: *Lexer) Token {
         },
 
         .identifier => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 'a'...'z', 'A'...'Z', '_', '0'...'9' => continue :state .identifier,
                 else => {},
             }
         },
 
         .backslash => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 0 => result.id = .invalid,
                 '\\' => continue :state .multiline_string_literal_line,
                 '\n' => result.id = .invalid,
@@ -201,23 +201,23 @@ pub fn next(self: *Lexer) Token {
         },
 
         .string_literal => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx == self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx == l.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
                 },
                 '\n' => result.id = .invalid,
                 '\\' => continue :state .string_literal_backslash,
-                '"' => self.idx += 1,
+                '"' => l.idx += 1,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .string_literal,
             }
         },
         .string_literal_backslash => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 0, '\n' => result.id = .invalid,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .string_literal,
@@ -225,24 +225,24 @@ pub fn next(self: *Lexer) Token {
         },
 
         .char_literal => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx == self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx == l.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
                 },
                 '\n' => result.id = .invalid,
                 '\\' => continue :state .char_literal_backslash,
-                '\'' => self.idx += 1,
+                '\'' => l.idx += 1,
                 0x01...0x09, 0x0b...0x1f, 0x7f => continue :state .invalid,
                 else => continue :state .char_literal,
             }
         },
         .char_literal_backslash => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx == self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx == l.src.len) {
                     result.id = .invalid;
                 } else {
                     continue :state .invalid;
@@ -254,13 +254,13 @@ pub fn next(self: *Lexer) Token {
         },
 
         .multiline_string_literal_line => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 },
                 '\n' => {},
-                '\r' => if (self.src[self.idx + 1] != '\n') {
+                '\r' => if (l.src[l.idx + 1] != '\n') {
                     continue :state .invalid;
                 },
                 0x01...0x09, 0x0b...0x0c, 0x0e...0x1f, 0x7f => continue :state .invalid,
@@ -269,25 +269,25 @@ pub fn next(self: *Lexer) Token {
         },
 
         .slash => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 '/' => continue :state .line_comment_start,
                 else => continue :state .invalid,
             }
         },
 
         .line_comment_start => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .loc = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = l.idx, .end = l.idx },
                 },
                 '\n' => {
-                    self.idx += 1;
-                    result.loc.start = self.idx;
+                    l.idx += 1;
+                    result.loc.start = l.idx;
                     continue :state .start;
                 },
                 '/' => continue :state .doc_comment_start,
@@ -297,17 +297,17 @@ pub fn next(self: *Lexer) Token {
             }
         },
         .doc_comment_start => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .loc = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = l.idx, .end = l.idx },
                 },
                 '\n' => {
-                    self.idx += 1;
-                    result.loc.start = self.idx;
+                    l.idx += 1;
+                    result.loc.start = l.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -316,17 +316,17 @@ pub fn next(self: *Lexer) Token {
             }
         },
         .line_comment => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .loc = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = l.idx, .end = l.idx },
                 },
                 '\n' => {
-                    self.idx += 1;
-                    result.loc.start = self.idx;
+                    l.idx += 1;
+                    result.loc.start = l.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -335,17 +335,17 @@ pub fn next(self: *Lexer) Token {
             }
         },
         .doc_comment => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 } else return .{
                     .id = .eof,
-                    .loc = .{ .start = self.idx, .end = self.idx },
+                    .loc = .{ .start = l.idx, .end = l.idx },
                 },
                 '\n' => {
-                    self.idx += 1;
-                    result.loc.start = self.idx;
+                    l.idx += 1;
+                    result.loc.start = l.idx;
                     continue :state .start;
                 },
                 '\r' => continue :state .expect_newline,
@@ -354,49 +354,49 @@ pub fn next(self: *Lexer) Token {
             }
         },
 
-        .int => switch (self.src[self.idx]) {
+        .int => switch (l.src[l.idx]) {
             '.' => continue :state .int_period,
             '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
-                self.idx += 1;
+                l.idx += 1;
                 continue :state .int;
             },
             'e', 'E', 'p', 'P' => continue :state .int_exponent,
             else => {},
         },
         .int_exponent => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 '-', '+' => {
-                    self.idx += 1;
+                    l.idx += 1;
                     continue :state .float;
                 },
                 else => continue :state .int,
             }
         },
         .int_period => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
-                    self.idx += 1;
+                    l.idx += 1;
                     continue :state .float;
                 },
                 'e', 'E', 'p', 'P' => continue :state .float_exponent,
-                else => self.idx -= 1,
+                else => l.idx -= 1,
             }
         },
-        .float => switch (self.src[self.idx]) {
+        .float => switch (l.src[l.idx]) {
             '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
-                self.idx += 1;
+                l.idx += 1;
                 continue :state .float;
             },
             'e', 'E', 'p', 'P' => continue :state .float_exponent,
             else => {},
         },
         .float_exponent => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
                 '-', '+' => {
-                    self.idx += 1;
+                    l.idx += 1;
                     continue :state .float;
                 },
                 else => continue :state .float,
@@ -404,16 +404,16 @@ pub fn next(self: *Lexer) Token {
         },
 
         .expect_newline => {
-            self.idx += 1;
-            switch (self.src[self.idx]) {
-                0 => if (self.idx != self.src.len) {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0 => if (l.idx != l.src.len) {
                     continue :state .invalid;
                 } else {
                     result.id = .invalid;
                 },
                 '\n' => {
-                    self.idx += 1;
-                    result.loc.start = self.idx;
+                    l.idx += 1;
+                    result.loc.start = l.idx;
                     continue :state .start;
                 },
                 else => continue :state .invalid,
@@ -421,7 +421,7 @@ pub fn next(self: *Lexer) Token {
         },
     }
 
-    result.loc.end = self.idx;
+    result.loc.end = l.idx;
     return result;
 }
 
