@@ -45,7 +45,7 @@ pub fn init(src: [:0]const u8) Lexer {
     };
 }
 
-pub fn output(self: Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io.Terminal.SetColorError!void {
+pub fn output(self: *const Lexer, t: std.Io.Terminal, tok: Token, count: usize) std.Io.Terminal.SetColorError!void {
     const w = t.writer;
     try t.setColor(.bold);
     try w.print("token {d}\n", .{count});
