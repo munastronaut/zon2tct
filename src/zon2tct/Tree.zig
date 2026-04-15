@@ -157,9 +157,9 @@ pub fn parseTokens(
         .src = src,
         .tokens = tokens,
         .tok_i = 0,
-        .nodes = .{},
-        .extra_data = .{},
-        .scratch = .{},
+        .nodes = .empty,
+        .extra_data = .empty,
+        .scratch = .empty,
     };
     defer parser.nodes.deinit(allocator);
     defer parser.extra_data.deinit(allocator);
