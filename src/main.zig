@@ -81,13 +81,18 @@ pub fn main(init: std.process.Init) void {
             // doesn't matter that we're ignoring this error because
             // we're gonna get rid of this eventually
             // and this is just for debugging so like, lol
-            error.WriteFailed => {},
+            error.WriteFailed => {
+                if (stdout_w.err) |er| {
+                    switch (er) {
+                        error.BrokenPipe => {},
+                        else => fatalError(er),
+                    }
+                }
+            },
             else => fatalError(err),
         };
         if (tok.id == .eof) break;
     }
-    // same thing as above
-    t.writer.flush() catch {};
 
     var artifact_file = cwd.createFile(io, output, .{}) catch |err| fatalError(err);
     var artifact_w = artifact_file.writer(io, &artifact_buf);
@@ -95,4 +100,14 @@ pub fn main(init: std.process.Init) void {
 
     artifact.writeAll("const noop = () => {};\nnoop();") catch |err| fatalError(err);
     artifact.flush() catch |err| fatalError(err);
+
+    // same thing as above
+    t.writer.flush() catch {
+        if (stdout_w.err) |er| {
+            switch (er) {
+                error.BrokenPipe => {},
+                else => fatalError(er),
+            }
+        }
+    };
 }
