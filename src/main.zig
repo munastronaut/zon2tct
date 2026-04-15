@@ -98,7 +98,8 @@ pub fn main(init: std.process.Init) void {
     var artifact_w = artifact_file.writer(io, &artifact_buf);
     const artifact = &artifact_w.interface;
 
-    artifact.writeAll("const noop = () => {};\nnoop();") catch |err| fatalError(err);
+    // placeholder
+    artifact.writeAll("const noop = () => {};\nnoop();\n") catch |err| fatalError(err);
     artifact.flush() catch |err| fatalError(err);
 
     // same thing as above
