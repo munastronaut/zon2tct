@@ -104,10 +104,10 @@ pub fn main(init: std.process.Init) void {
 
     // same thing as above
     t.writer.flush() catch {
-        if (stdout_w.err) |er| {
-            switch (er) {
+        if (stdout_w.err) |err| {
+            switch (err) {
                 error.BrokenPipe => {},
-                else => fatalError(er),
+                else => fatalError(err),
             }
         }
     };
