@@ -80,9 +80,8 @@ pub const Node = struct {
     comptime {
         assert(@sizeOf(Id) == 1);
 
-        if (!std.debug.runtime_safety) {
+        if (!std.debug.runtime_safety)
             assert(@sizeOf(Data) == 8);
-        }
     }
 
     pub const Id = enum {
@@ -117,12 +116,16 @@ pub const Location = struct {
     line_end: u32,
 };
 
-pub fn tokenStart(tree: *const Tree, token_index: TokenIndex) ByteOffset {
-    return tree.tokens.items(.start)[token_index];
+pub fn tokenStart(t: *const Tree, token_index: TokenIndex) ByteOffset {
+    return t.tokens.items(.start)[token_index];
+}
+
+pub fn tokenId(t: *const Tree, token_index: TokenIndex) Token.Id {
+    return t.tokens.items(.id)[token_index];
 }
 
 pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
-    var toks = Tree.TokenList{};
+    var toks: Tree.TokenList = .empty;
     defer toks.deinit(allocator);
 
     var lexer = Lexer.init(src);
@@ -140,11 +143,11 @@ pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
     return parseTokens(allocator, src, toks_slice);
 }
 
-pub fn deinit(tree: *Tree, allocator: Allocator) void {
-    tree.tokens.deinit(allocator);
-    tree.nodes.deinit(allocator);
-    allocator.free(tree.extra_data);
-    tree.* = undefined;
+pub fn deinit(t: *Tree, allocator: Allocator) void {
+    t.tokens.deinit(allocator);
+    t.nodes.deinit(allocator);
+    allocator.free(t.extra_data);
+    t.* = undefined;
 }
 
 pub fn parseTokens(
@@ -152,7 +155,7 @@ pub fn parseTokens(
     src: [:0]const u8,
     tokens: TokenList.Slice,
 ) Allocator.Error!Tree {
-    var parser: Parse = .{
+    var p: Parse = .{
         .allocator = allocator,
         .src = src,
         .tokens = tokens,
@@ -161,41 +164,41 @@ pub fn parseTokens(
         .extra_data = .empty,
         .scratch = .empty,
     };
-    defer parser.nodes.deinit(allocator);
-    defer parser.extra_data.deinit(allocator);
-    defer parser.scratch.deinit(allocator);
+    defer p.nodes.deinit(allocator);
+    defer p.extra_data.deinit(allocator);
+    defer p.scratch.deinit(allocator);
 
-    const extra_data = try parser.extra_data.toOwnedSlice(allocator);
+    const extra_data = try p.extra_data.toOwnedSlice(allocator);
     errdefer allocator.free(extra_data);
 
     return .{
         .src = src,
         .tokens = tokens,
-        .nodes = parser.nodes.toOwnedSlice(),
+        .nodes = p.nodes.toOwnedSlice(),
         .extra_data = extra_data,
     };
 }
 
-pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, token_index: TokenIndex) Location {
+pub fn tokenLocation(t: Tree, start_offset: ByteOffset, token_index: TokenIndex) Location {
     var loc: Location = .{
         .line = 1,
         .column = 1,
         .line_start = start_offset,
-        .line_end = tree.src.len,
+        .line_end = t.src.len,
     };
-    const tok_start = tree.tokenStart(token_index);
+    const tok_start = t.tokenStart(token_index);
 
-    while (std.mem.findScalarPos(u8, tree.src, loc.line_start, '\n')) |i| {
+    while (std.mem.findScalarPos(u8, t.src, loc.line_start, '\n')) |i| {
         if (i >= tok_start) break;
         loc.line += 1;
         loc.line_start = i + 1;
     }
 
     const offset = loc.line_start;
-    for (tree.src[offset..], 0..) |c, i| {
+    for (t.src[offset..], 0..) |c, i| {
         if (i + offset == tok_start) {
             loc.line_end = i + offset;
-            while (loc.line_end < tree.src.len and tree.src[loc.line_end] != '\n')
+            while (loc.line_end < t.src.len and t.src[loc.line_end] != '\n')
                 loc.line_end += 1;
 
             return loc;
@@ -209,4 +212,16 @@ pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, token_index: TokenInd
         }
     }
     return loc;
+}
+
+pub fn tokenSlice(t: Tree, token_index: TokenIndex) []const u8 {
+    const tok_id = t.tokenId(token_index);
+
+    var lexer: Lexer = .{
+        .src = t.src,
+        .idx = t.tokenStart(token_index),
+    };
+    const tok = lexer.next();
+    assert(tok.id == tok_id);
+    return t.src[tok.loc.start..tok.loc.end];
 }
