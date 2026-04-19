@@ -38,7 +38,7 @@ pub fn main(init: std.process.Init) void {
     const output = args.next() orelse std.mem.concat(
         allocator,
         u8,
-        &.{ std.fs.path.stem(input), ".js" },
+        &.{ std.Io.Dir.path.stem(input), ".js" },
     ) catch |err| fatalError(err);
 
     const cwd = Io.Dir.cwd();
