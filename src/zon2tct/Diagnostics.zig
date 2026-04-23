@@ -131,7 +131,7 @@ pub fn formatInt(w: *std.Io.Writer, fmt: []const u8, int: anytype) std.Io.Writer
     return i;
 }
 
-fn addMessage(d: *Diagnostics, msg: Message) !void {
+fn addMessage(d: *Diagnostics, msg: Message) error{ FatalError, OutOfMemory }!void {
     std.debug.assert(msg.effective_kind != .off);
     switch (msg.effective_kind) {
         .off => unreachable,
