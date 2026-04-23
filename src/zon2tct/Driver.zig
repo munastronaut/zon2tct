@@ -64,8 +64,6 @@ pub fn printDiagnosticsStats(d: *Driver) void {
         w.print("{d} warnings{s} generated.\n", .{ warnings, w_s }) catch return
     else if (errors != 0)
         w.print("{d} error{s} generated.\n", .{ errors, e_s }) catch return;
-
-    w.flush() catch return;
 }
 
 pub fn main(d: *Driver, args: []const []const u8) !void {
@@ -76,6 +74,8 @@ pub fn main(d: *Driver, args: []const []const u8) !void {
         error.OutOfMemory => return error.OutOfMemory,
         error.FatalError => return error.FatalError,
     }) return;
+
+    d.printDiagnosticsStats();
 }
 
 pub const usage =

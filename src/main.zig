@@ -7,53 +7,51 @@ const Compilation = zon2tct.Compilation;
 const Diagnostics = zon2tct.Diagnostics;
 const Driver = zon2tct.Driver;
 
-var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
-var artifact_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
+var stderr_buf: [1024]u8 align(std.heap.page_size_min) = undefined;
 
-fn fatalErrorFilename(name: []const u8, err: anyerror) noreturn {
-    std.process.fatal("{s}: {s}", .{ name, Driver.errorDescription(err) });
-}
+fn fatalError(diagnostics: *Diagnostics, text: []const u8) noreturn {
+    diagnostics.add(.{ .kind = .@"fatal error", .text = text, .location = null }) catch |err| switch (err) {
+        error.FatalError => {
+            const w = diagnostics.output.to_writer.writer;
 
-fn fatalError(err: anyerror) noreturn {
-    std.process.fatal("{s}", .{Driver.errorDescription(err)});
+            const warnings = diagnostics.warnings;
+            const errors = diagnostics.errors;
+            const w_s: []const u8 = if (warnings == 1) "" else "s";
+            const e_s: []const u8 = if (errors == 1) "" else "s";
+            if (errors != 0 and warnings != 0)
+                w.print("{d} warning{s} and {d} error{s} generated.\n", .{ warnings, w_s, errors, e_s }) catch {}
+            else if (warnings != 0)
+                w.print("{d} warnings{s} generated.\n", .{ warnings, w_s }) catch {}
+            else if (errors != 0)
+                w.print("{d} error{s} generated.\n", .{ errors, e_s }) catch {};
+
+            w.flush() catch {};
+
+            std.process.exit(1);
+        },
+        error.OutOfMemory => unreachable,
+    };
+    unreachable;
 }
 
 pub fn main(init: std.process.Init) void {
-    //const env = init.environ_map;
     const io = init.io;
     const arena = init.arena.allocator();
 
-    //var args = init.minimal.args.iterateAllocator(allocator) catch |err| fatalError(err);
-    //_ = args.next();
-    //const input = args.next() orelse std.process.fatal("no input file", .{});
-    //const output = args.next() orelse std.mem.concat(
-    //    allocator,
-    //    u8,
-    //    &.{ Io.Dir.path.stem(input), ".js" },
-    //) catch |err| fatalError(err);
-
-    //const cwd = Io.Dir.cwd();
-    //const src = cwd.readFileAllocOptions(
-    //    io,
-    //    input,
-    //    allocator,
-    //    .limited(std.math.maxInt(u32)),
-    //    .of(u8),
-    //    0,
-    //) catch |err| fatalErrorFilename(input, err);
-
-    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(err);
-
-    var stderr_buf: [1024]u8 = undefined;
     var stderr = Io.File.stderr().writer(io, &stderr_buf);
     var diagnostics: Diagnostics = .{
         .output = .{
             .to_writer = .{
-                .mode = std.Io.Terminal.Mode.detect(io, stderr.file, false, false) catch .no_color,
+                .mode = Io.Terminal.Mode.detect(io, stderr.file, false, false) catch .no_color,
                 .writer = &stderr.interface,
             },
         },
     };
+
+    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(
+        &diagnostics,
+        Driver.errorDescription(err),
+    );
 
     var comp: Compilation = .{
         .gpa = init.gpa,
@@ -73,6 +71,6 @@ pub fn main(init: std.process.Init) void {
             std.process.exit(1);
         },
         //error.Canceled => unreachable,
-        else => fatalError(err),
+        else => fatalError(&diagnostics, Driver.errorDescription(err)),
     };
 }
