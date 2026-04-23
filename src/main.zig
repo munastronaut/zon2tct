@@ -9,13 +9,13 @@ const Driver = zon2tct.Driver;
 
 var stderr_buf: [1024]u8 align(std.heap.page_size_min) = undefined;
 
-fn fatalError(diagnostics: *Diagnostics, text: []const u8) noreturn {
-    diagnostics.add(.{ .kind = .@"fatal error", .text = text, .location = null }) catch |err| switch (err) {
+fn fatalError(d: *Diagnostics, text: []const u8) noreturn {
+    d.add(.{ .kind = .@"fatal error", .text = text, .location = null }) catch |err| switch (err) {
         error.FatalError => {
-            const w = diagnostics.output.to_writer.writer;
+            const w = d.output.to_writer.writer;
 
-            const warnings = diagnostics.warnings;
-            const errors = diagnostics.errors;
+            const warnings = d.warnings;
+            const errors = d.errors;
             const w_s: []const u8 = if (warnings == 1) "" else "s";
             const e_s: []const u8 = if (errors == 1) "" else "s";
             if (errors != 0 and warnings != 0)
@@ -57,7 +57,7 @@ pub fn main(init: std.process.Init) void {
         .gpa = init.gpa,
         .arena = arena,
         .io = io,
-        .cwd = Io.Dir.cwd(),
+        .cwd = .cwd(),
     };
 
     var driver: Driver = .{
@@ -70,7 +70,6 @@ pub fn main(init: std.process.Init) void {
             driver.printDiagnosticsStats();
             std.process.exit(1);
         },
-        //error.Canceled => unreachable,
         else => fatalError(&diagnostics, Driver.errorDescription(err)),
     };
 }
