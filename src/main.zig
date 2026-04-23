@@ -4,28 +4,18 @@ const Allocator = std.mem.Allocator;
 
 const zon2tct = @import("zon2tct.zig");
 const Compilation = zon2tct.Compilation;
+const Diagnostics = zon2tct.Diagnostics;
 const Driver = zon2tct.Driver;
 
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 var artifact_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 
-fn errorDescription(err: anyerror) []const u8 {
-    return switch (err) {
-        error.WriteFailed => "failed to write to file",
-        error.OutOfMemory => "ran out of memory",
-        error.FileNotFound => "no such file or directory",
-        error.NotDir => "not a directory",
-        error.IsDir => "is a directory",
-        else => @errorName(err),
-    };
-}
-
 fn fatalErrorFilename(name: []const u8, err: anyerror) noreturn {
-    std.process.fatal("{s}: {s}", .{ name, errorDescription(err) });
+    std.process.fatal("{s}: {s}", .{ name, Driver.errorDescription(err) });
 }
 
 fn fatalError(err: anyerror) noreturn {
-    std.process.fatal("{s}", .{errorDescription(err)});
+    std.process.fatal("{s}", .{Driver.errorDescription(err)});
 }
 
 pub fn main(init: std.process.Init) void {
@@ -54,6 +44,17 @@ pub fn main(init: std.process.Init) void {
 
     const args = init.minimal.args.toSlice(arena) catch |err| fatalError(err);
 
+    var stderr_buf: [1024]u8 = undefined;
+    var stderr = Io.File.stderr().writer(io, &stderr_buf);
+    var diagnostics: Diagnostics = .{
+        .output = .{
+            .to_writer = .{
+                .mode = std.Io.Terminal.Mode.detect(io, stderr.file, false, false) catch .no_color,
+                .writer = &stderr.interface,
+            },
+        },
+    };
+
     var comp: Compilation = .{
         .gpa = init.gpa,
         .arena = arena,
@@ -61,9 +62,17 @@ pub fn main(init: std.process.Init) void {
         .cwd = Io.Dir.cwd(),
     };
 
-    var d: Driver = .{
+    var driver: Driver = .{
         .comp = &comp,
+        .diagnostics = &diagnostics,
     };
 
-    d.main(args) catch |err| fatalError(err);
+    driver.main(args) catch |err| switch (err) {
+        error.FatalError => {
+            driver.printDiagnosticsStats();
+            std.process.exit(1);
+        },
+        //error.Canceled => unreachable,
+        else => fatalError(err),
+    };
 }
