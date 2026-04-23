@@ -3,7 +3,8 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 const zon2tct = @import("zon2tct.zig");
-const Lexer = zon2tct.Lexer;
+const Compilation = zon2tct.Compilation;
+const Driver = zon2tct.Driver;
 
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 var artifact_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
@@ -28,87 +29,41 @@ fn fatalError(err: anyerror) noreturn {
 }
 
 pub fn main(init: std.process.Init) void {
-    const env = init.environ_map;
+    //const env = init.environ_map;
     const io = init.io;
-    const allocator = init.arena.allocator();
+    const arena = init.arena.allocator();
 
-    var args = init.minimal.args.iterateAllocator(allocator) catch |err| fatalError(err);
-    _ = args.next();
-    const input = args.next() orelse std.process.fatal("no input file", .{});
-    const output = args.next() orelse std.mem.concat(
-        allocator,
-        u8,
-        &.{ std.Io.Dir.path.stem(input), ".js" },
-    ) catch |err| fatalError(err);
+    //var args = init.minimal.args.iterateAllocator(allocator) catch |err| fatalError(err);
+    //_ = args.next();
+    //const input = args.next() orelse std.process.fatal("no input file", .{});
+    //const output = args.next() orelse std.mem.concat(
+    //    allocator,
+    //    u8,
+    //    &.{ Io.Dir.path.stem(input), ".js" },
+    //) catch |err| fatalError(err);
 
-    const cwd = Io.Dir.cwd();
-    const src = cwd.readFileAllocOptions(
-        io,
-        input,
-        allocator,
-        .limited(std.math.maxInt(u32)),
-        .of(u8),
-        0,
-    ) catch |err| fatalErrorFilename(input, err);
+    //const cwd = Io.Dir.cwd();
+    //const src = cwd.readFileAllocOptions(
+    //    io,
+    //    input,
+    //    allocator,
+    //    .limited(std.math.maxInt(u32)),
+    //    .of(u8),
+    //    0,
+    //) catch |err| fatalErrorFilename(input, err);
 
-    var stdout_w = Io.File.stdout().writer(io, &stdout_buf);
+    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(err);
 
-    const clicolor_force = if (env.get("CLICOLOR_FORCE")) |v|
-        !std.mem.eql(u8, v, "0")
-    else
-        false;
-
-    const no_color = env.contains("NO_COLOR");
-
-    const term_mode = Io.Terminal.Mode.detect(
-        io,
-        stdout_w.file,
-        no_color,
-        clicolor_force,
-    ) catch .no_color;
-
-    const t: Io.Terminal = .{
-        .mode = term_mode,
-        .writer = &stdout_w.interface,
+    var comp: Compilation = .{
+        .gpa = init.gpa,
+        .arena = arena,
+        .io = io,
+        .cwd = Io.Dir.cwd(),
     };
 
-    var lexer = Lexer.init(src);
-    var tok_count: usize = 1;
-    while (true) : (tok_count += 1) {
-        const tok = lexer.next();
-        lexer.output(t, tok, tok_count) catch |err| switch (err) {
-            // user probably just closed the pipe...
-            // doesn't matter that we're ignoring this error because
-            // we're gonna get rid of this eventually
-            // and this is just for debugging so like, lol
-            error.WriteFailed => {
-                if (stdout_w.err) |er| {
-                    switch (er) {
-                        error.BrokenPipe => {},
-                        else => fatalError(er),
-                    }
-                }
-            },
-            else => fatalError(err),
-        };
-        if (tok.id == .eof) break;
-    }
-
-    var artifact_file = cwd.createFile(io, output, .{}) catch |err| fatalError(err);
-    var artifact_w = artifact_file.writer(io, &artifact_buf);
-    const artifact = &artifact_w.interface;
-
-    // placeholder
-    artifact.writeAll("const noop = () => {};\nnoop();\n") catch |err| fatalError(err);
-    artifact.flush() catch |err| fatalError(err);
-
-    // same thing as above
-    t.writer.flush() catch {
-        if (stdout_w.err) |err| {
-            switch (err) {
-                error.BrokenPipe => {},
-                else => fatalError(err),
-            }
-        }
+    var d: Driver = .{
+        .comp = &comp,
     };
+
+    d.main(args) catch |err| fatalError(err);
 }

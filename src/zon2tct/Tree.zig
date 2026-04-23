@@ -168,6 +168,8 @@ pub fn parseTokens(
     defer p.extra_data.deinit(allocator);
     defer p.scratch.deinit(allocator);
 
+    try p.parse();
+
     const extra_data = try p.extra_data.toOwnedSlice(allocator);
     errdefer allocator.free(extra_data);
 
