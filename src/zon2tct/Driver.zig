@@ -126,11 +126,15 @@ test "parse name" {
         .cwd = std.Io.Dir.cwd(),
     };
 
+    var diag: Diagnostics = .{
+        .output = .ignore,
+    };
+
     var d: Driver = .{
         .comp = &comp,
+        .diagnostics = &diag,
     };
 
     try d.main(args);
-
     try std.testing.expectEqualStrings("output.js", d.output_name.?);
 }
