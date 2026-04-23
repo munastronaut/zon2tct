@@ -61,12 +61,12 @@ pub fn printDiagnosticsStats(d: *Driver) void {
     if (errors != 0 and warnings != 0)
         w.print("{d} warning{s} and {d} error{s} generated.\n", .{ warnings, w_s, errors, e_s }) catch return
     else if (warnings != 0)
-        w.print("{d} warnings{s} generated.\n", .{ warnings, w_s }) catch return
+        w.print("{d} warning{s} generated.\n", .{ warnings, w_s }) catch return
     else if (errors != 0)
         w.print("{d} error{s} generated.\n", .{ errors, e_s }) catch return;
 }
 
-pub fn main(d: *Driver, args: []const []const u8) !void {
+pub fn main(d: *Driver, args: []const []const u8) error{ FatalError, OutOfMemory }!void {
     var stdout_buf: [512]u8 = undefined;
     var stdout = std.Io.File.stdout().writer(d.comp.io, &stdout_buf);
     if (d.parseArgs(&stdout.interface, args) catch |er| switch (er) {
@@ -74,8 +74,6 @@ pub fn main(d: *Driver, args: []const []const u8) !void {
         error.OutOfMemory => return error.OutOfMemory,
         error.FatalError => return error.FatalError,
     }) return;
-
-    d.printDiagnosticsStats();
 }
 
 pub const usage =
@@ -87,7 +85,11 @@ pub const usage =
     \\
 ;
 
-pub fn parseArgs(d: *Driver, stdout: *std.Io.Writer, args: []const []const u8) !bool {
+pub fn parseArgs(
+    d: *Driver,
+    stdout: *std.Io.Writer,
+    args: []const []const u8,
+) (error{ FatalError, OutOfMemory } || std.Io.Writer.Error)!bool {
     const gpa = d.comp.gpa;
     _ = gpa;
 
