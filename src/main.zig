@@ -9,28 +9,14 @@ const Driver = zon2tct.Driver;
 
 var stderr_buf: [1024]u8 align(std.heap.page_size_min) = undefined;
 
-fn fatalError(d: *Diagnostics, text: []const u8) noreturn {
-    d.add(.{ .kind = .@"fatal error", .text = text, .location = null }) catch |err| switch (err) {
+fn fatalError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn {
+    switch (d.fatal(fmt, args)) {
         error.FatalError => {
-            const w = d.output.to_writer.writer;
-
-            const warnings = d.warnings;
-            const errors = d.errors;
-            const w_s: []const u8 = if (warnings == 1) "" else "s";
-            const e_s: []const u8 = if (errors == 1) "" else "s";
-            if (errors != 0 and warnings != 0)
-                w.print("{d} warning{s} and {d} error{s} generated.\n", .{ warnings, w_s, errors, e_s }) catch {}
-            else if (warnings != 0)
-                w.print("{d} warnings{s} generated.\n", .{ warnings, w_s }) catch {}
-            else if (errors != 0)
-                w.print("{d} error{s} generated.\n", .{ errors, e_s }) catch {};
-
-            w.flush() catch {};
-
+            d.printDiagnosticsStats();
             std.process.exit(1);
         },
         error.OutOfMemory => unreachable,
-    };
+    }
     unreachable;
 }
 
@@ -48,11 +34,6 @@ pub fn main(init: std.process.Init) void {
         },
     };
 
-    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(
-        &diagnostics,
-        Driver.errorDescription(err),
-    );
-
     var comp: Compilation = .{
         .gpa = init.gpa,
         .arena = arena,
@@ -65,11 +46,13 @@ pub fn main(init: std.process.Init) void {
         .diagnostics = &diagnostics,
     };
 
+    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(&driver, "{s}", .{Driver.errorDescription(err)});
+
     driver.main(args) catch |err| switch (err) {
         error.FatalError => {
             driver.printDiagnosticsStats();
             std.process.exit(1);
         },
-        else => fatalError(&diagnostics, Driver.errorDescription(err)),
+        error.OutOfMemory => fatalError(&driver, "{s}", .{Driver.errorDescription(err)}),
     };
 }
