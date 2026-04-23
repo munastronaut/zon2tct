@@ -112,7 +112,7 @@ pub fn parseArgs(
                 try d.warn("unknown argument '{s}'", .{arg});
             }
         } else {
-            // TODO handle source files here
+            // TODO: handle source files here
         }
     }
     return false;
