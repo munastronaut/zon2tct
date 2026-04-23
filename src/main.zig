@@ -9,7 +9,9 @@ const Driver = zon2tct.Driver;
 
 var stderr_buf: [1024]u8 align(std.heap.page_size_min) = undefined;
 
-fn fatalError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn {
+// Not moving this into `Driver` because this is for errors during initialization, not during the
+// actual driver phase.
+fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn {
     switch (d.fatal(fmt, args)) {
         error.FatalError => {
             d.printDiagnosticsStats();
@@ -46,13 +48,13 @@ pub fn main(init: std.process.Init) void {
         .diagnostics = &diagnostics,
     };
 
-    const args = init.minimal.args.toSlice(arena) catch |err| fatalError(&driver, "{s}", .{Driver.errorDescription(err)});
+    const args = init.minimal.args.toSlice(arena) catch |err| fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)});
 
     driver.main(args) catch |err| switch (err) {
         error.FatalError => {
             driver.printDiagnosticsStats();
             std.process.exit(1);
         },
-        error.OutOfMemory => fatalError(&driver, "{s}", .{Driver.errorDescription(err)}),
+        error.OutOfMemory => fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)}),
     };
 }
