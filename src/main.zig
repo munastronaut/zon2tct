@@ -17,6 +17,8 @@ fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn 
             d.printDiagnosticsStats();
             std.process.exit(1);
         },
+        // Tested with `std.mem.Allocator.failing`, always seems to output correctly, so this
+        // branch is unreachable for now.
         error.OutOfMemory => unreachable,
     }
     unreachable;
@@ -24,6 +26,7 @@ fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn 
 
 pub fn main(init: std.process.Init) void {
     const io = init.io;
+    const gpa = init.gpa;
     const arena = init.arena.allocator();
 
     var stderr = Io.File.stderr().writer(io, &stderr_buf);
@@ -37,7 +40,7 @@ pub fn main(init: std.process.Init) void {
     };
 
     var comp: Compilation = .{
-        .gpa = init.gpa,
+        .gpa = gpa,
         .arena = arena,
         .io = io,
         .cwd = .cwd(),
