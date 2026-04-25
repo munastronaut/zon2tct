@@ -61,7 +61,11 @@ pub fn main(init: std.process.Init) void {
         .diagnostics = &diagnostics,
     };
 
-    const args = init.minimal.args.toSlice(arena) catch |err| fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)});
+    const args = init.minimal.args.toSlice(arena) catch |err| fatalInitError(
+        &driver,
+        "{s}",
+        .{Driver.errorDescription(err)},
+    );
 
     driver.main(args) catch |err| switch (err) {
         error.FatalError => {
