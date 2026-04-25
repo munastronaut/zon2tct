@@ -25,15 +25,24 @@ fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn 
 }
 
 pub fn main(init: std.process.Init) void {
+    const env = init.environ_map;
     const io = init.io;
     const gpa = init.gpa;
     const arena = init.arena.allocator();
+
+    const NO_COLOR = if (env.get("NO_COLOR")) |v| v.len > 0 else false;
+    const CLICOLOR_FORCE = if (env.get("CLICOLOR_FORCE")) |v| !std.mem.eql(u8, v, "0") else false;
 
     var stderr = Io.File.stderr().writer(io, &stderr_buf);
     var diagnostics: Diagnostics = .{
         .output = .{
             .to_writer = .{
-                .mode = Io.Terminal.Mode.detect(io, stderr.file, false, false) catch .no_color,
+                .mode = Io.Terminal.Mode.detect(
+                    io,
+                    stderr.file,
+                    NO_COLOR,
+                    CLICOLOR_FORCE,
+                ) catch .no_color,
                 .writer = &stderr.interface,
             },
         },
@@ -44,6 +53,7 @@ pub fn main(init: std.process.Init) void {
         .arena = arena,
         .io = io,
         .cwd = .cwd(),
+        .diagnostics = &diagnostics,
     };
 
     var driver: Driver = .{
@@ -60,4 +70,5 @@ pub fn main(init: std.process.Init) void {
         },
         error.OutOfMemory => fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)}),
     };
+    if (comp.diagnostics.errors != 0) std.process.exit(1);
 }
