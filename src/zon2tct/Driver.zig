@@ -121,20 +121,10 @@ pub fn parseArgs(
 test "parse name" {
     const args: []const []const u8 = &[_][]const u8{ "zon2tct", "input.zon", "--name", "output.js" };
 
-    var comp: Compilation = .{
-        .gpa = std.testing.allocator,
-        .arena = std.testing.allocator,
-        .io = std.testing.io,
-        .cwd = std.Io.Dir.cwd(),
-    };
-
-    var diag: Diagnostics = .{
-        .output = .ignore,
-    };
-
+    var comp: Compilation = .testing;
     var d: Driver = .{
         .comp = &comp,
-        .diagnostics = &diag,
+        .diagnostics = undefined,
     };
 
     try d.main(args);
