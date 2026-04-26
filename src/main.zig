@@ -25,7 +25,10 @@ pub fn main(init: std.process.Init) u8 {
     const arena = init.arena.allocator();
 
     const NO_COLOR = if (env.get("NO_COLOR")) |v| v.len > 0 else false;
-    const CLICOLOR_FORCE = if (env.get("CLICOLOR_FORCE")) |v| v.len > 0 and !std.mem.eql(u8, v, "0") else false;
+    const CLICOLOR_FORCE = if (env.get("CLICOLOR_FORCE")) |v|
+        v.len > 0 and !std.mem.eql(u8, v, "0")
+    else
+        false;
 
     var stderr = Io.File.stderr().writer(io, &stderr_buf);
     var diagnostics: Diagnostics = .{
@@ -55,11 +58,8 @@ pub fn main(init: std.process.Init) u8 {
         .diagnostics = &diagnostics,
     };
 
-    const args = init.minimal.args.toSlice(arena) catch |err| return fatalInitError(
-        &driver,
-        "{s}",
-        .{Driver.errorDescription(err)},
-    );
+    const args = init.minimal.args.toSlice(arena) catch |err|
+        return fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)});
 
     driver.main(args) catch |err| switch (err) {
         error.FatalError => {
