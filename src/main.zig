@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("zon2tct");
 const Compilation = zon2tct.Compilation;
 const Diagnostics = zon2tct.Diagnostics;
 const Driver = zon2tct.Driver;
