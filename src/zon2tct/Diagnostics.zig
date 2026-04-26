@@ -1,10 +1,12 @@
 const std = @import("std");
 
+const Source = @import("../zon2tct.zig").Source;
+
 pub const Message = struct {
     kind: Kind,
     text: []const u8,
 
-    location: ?Location = null,
+    location: ?Source.ExpandedLocation = null,
 
     effective_kind: Kind = .off,
 
@@ -14,15 +16,6 @@ pub const Message = struct {
         warning,
         @"error",
         @"fatal error",
-    };
-
-    pub const Location = struct {
-        path: []const u8,
-        line: []const u8,
-        line_no: u32,
-        col: u32,
-        width: u32,
-        kind: Kind,
     };
 
     pub fn write(msg: Message, term: std.Io.Terminal, details: bool) std.Io.Terminal.SetColorError!void {

@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Diagnostics = @import("Diagnostics.zig");
+const Diagnostics = @import("../zon2tct.zig").Diagnostics;
 
 const Compilation = @This();
 

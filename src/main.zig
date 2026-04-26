@@ -11,27 +11,21 @@ var stderr_buf: [1024]u8 align(std.heap.page_size_min) = undefined;
 
 // Not moving this into `Driver` because this is for errors during initialization, not during the
 // actual driver phase.
-fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) noreturn {
-    switch (d.fatal(fmt, args)) {
-        error.FatalError => {
-            d.printDiagnosticsStats();
-            std.process.exit(1);
-        },
-        // Tested with `std.mem.Allocator.failing`, always seems to output correctly, so this
-        // branch is unreachable for now.
-        error.OutOfMemory => unreachable,
-    }
-    unreachable;
+inline fn fatalInitError(d: *Driver, comptime fmt: []const u8, args: anytype) u8 {
+    // OutOfMemory is unreachable so this is safe to discard, I think
+    _ = d.fatal(fmt, args) catch {};
+    d.printDiagnosticsStats();
+    return 1;
 }
 
-pub fn main(init: std.process.Init) void {
+pub fn main(init: std.process.Init) u8 {
     const env = init.environ_map;
     const io = init.io;
     const gpa = init.gpa;
     const arena = init.arena.allocator();
 
     const NO_COLOR = if (env.get("NO_COLOR")) |v| v.len > 0 else false;
-    const CLICOLOR_FORCE = if (env.get("CLICOLOR_FORCE")) |v| !std.mem.eql(u8, v, "0") else false;
+    const CLICOLOR_FORCE = if (env.get("CLICOLOR_FORCE")) |v| v.len > 0 and !std.mem.eql(u8, v, "0") else false;
 
     var stderr = Io.File.stderr().writer(io, &stderr_buf);
     var diagnostics: Diagnostics = .{
@@ -61,7 +55,7 @@ pub fn main(init: std.process.Init) void {
         .diagnostics = &diagnostics,
     };
 
-    const args = init.minimal.args.toSlice(arena) catch |err| fatalInitError(
+    const args = init.minimal.args.toSlice(arena) catch |err| return fatalInitError(
         &driver,
         "{s}",
         .{Driver.errorDescription(err)},
@@ -70,9 +64,9 @@ pub fn main(init: std.process.Init) void {
     driver.main(args) catch |err| switch (err) {
         error.FatalError => {
             driver.printDiagnosticsStats();
-            std.process.exit(1);
+            return 1;
         },
-        error.OutOfMemory => fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)}),
+        error.OutOfMemory => return fatalInitError(&driver, "{s}", .{Driver.errorDescription(err)}),
     };
-    if (comp.diagnostics.errors != 0) std.process.exit(1);
+    return @intFromBool(comp.diagnostics.errors > 0);
 }

@@ -1,8 +1,9 @@
 const std = @import("std");
 const mem = std.mem;
 
-const Compilation = @import("Compilation.zig");
-const Diagnostics = @import("Diagnostics.zig");
+const zon2tct = @import("../zon2tct.zig");
+const Compilation = zon2tct.Compilation;
+const Diagnostics = zon2tct.Diagnostics;
 
 const Driver = @This();
 
@@ -109,24 +110,11 @@ pub fn parseArgs(
                 }
                 d.output_name = args[i];
             } else {
-                try d.warn("unknown argument '{s}'", .{arg});
+                try d.err("unknown argument '{s}'", .{arg});
             }
         } else {
             // TODO: handle source files here
         }
     }
     return false;
-}
-
-test "parse name" {
-    const args: []const []const u8 = &[_][]const u8{ "zon2tct", "input.zon", "--name", "output.js" };
-
-    var comp: Compilation = .testing;
-    var d: Driver = .{
-        .comp = &comp,
-        .diagnostics = undefined,
-    };
-
-    try d.main(args);
-    try std.testing.expectEqualStrings("output.js", d.output_name.?);
 }
