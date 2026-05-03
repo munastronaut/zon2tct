@@ -12,6 +12,7 @@ const TokenIndex = Tree.TokenIndex;
 
 pub const Error = error{ParseError} || Allocator.Error;
 
+diag: *zon2tct.Diagnostics,
 allocator: Allocator,
 src: []const u8,
 tokens: Tree.TokenList.Slice,
@@ -28,12 +29,12 @@ pub fn parse(p: *Parse) !void {
     });
 }
 
-fn tokenId(p: *const Parse, token_index: TokenIndex) Token.Id {
-    return p.tokens.items(.id)[token_index];
+fn tokenId(p: *const Parse, tok_idx: TokenIndex) Token.Id {
+    return p.tokens.items(.id)[tok_idx];
 }
 
-fn tokenStart(p: *const Parse, token_index: TokenIndex) Tree.ByteOffset {
-    return p.tokens.items(.start)[token_index];
+fn tokenStart(p: *const Parse, tok_idx: TokenIndex) Tree.ByteOffset {
+    return p.tokens.items(.start)[tok_idx];
 }
 
 fn expectExpr(p: *Parse) Error!Node.Index {
