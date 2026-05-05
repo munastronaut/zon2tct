@@ -40,13 +40,13 @@ pub const Payload = struct {
 
     pub const GlobalEffect = struct {
         pk: u32,
-        effect: Effect,
+        eff: Effect,
     };
 
     pub const StateEffect = struct {
         pk: u32,
         state: u32,
-        effect: Effect,
+        eff: Effect,
     };
 
     pub const IssueEffect = struct {
