@@ -6,11 +6,11 @@ string_bytes: []u8,
 payload: Payload,
 
 pub const Payload = struct {
-    questions: std.MultiArrayList(Question).Slice,
-    answers: std.MultiArrayList(Answer).Slice,
-    global_effects: std.MultiArrayList(GlobalEffect).Slice,
-    state_effects: std.MultiArrayList(StateEffect).Slice,
-    issue_effects: std.MultiArrayList(IssueEffect).Slice,
+    questions: std.ArrayList(Question),
+    answers: std.ArrayList(Answer),
+    global_effects: std.ArrayList(GlobalEffect),
+    state_effects: std.ArrayList(StateEffect),
+    issue_effects: std.ArrayList(IssueEffect),
 
     pub fn deinit(p: *Payload, gpa: std.mem.Allocator) void {
         p.questions.deinit(gpa);
@@ -24,26 +24,31 @@ pub const Payload = struct {
         pk: u32,
         text: NullTerminatedString,
     };
+
     pub const Answer = struct {
         pk: u32,
         qn: u32,
         text: NullTerminatedString,
         fdbk: NullTerminatedString,
     };
+
     pub const Effect = struct {
         ans: u32,
         tgt: u32,
         mult: f64,
     };
+
     pub const GlobalEffect = struct {
         pk: u32,
         effect: Effect,
     };
+
     pub const StateEffect = struct {
         pk: u32,
         state: u32,
         effect: Effect,
     };
+
     pub const IssueEffect = struct {
         pk: u32,
         ans: u32,
