@@ -1,6 +1,15 @@
 const std = @import("std");
+
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
+const path = Io.Dir.path;
+
+const mem = std.mem;
+const Allocator = mem.Allocator;
+
+const process = std.process;
+const fatal = process.fatal;
+const exit = process.exit;
+const cleanExit = process.cleanExit;
 
 const zon2tct = @import("zon2tct");
 
@@ -43,15 +52,76 @@ pub fn logInner(
     t.setColor(.reset) catch {};
     t.setColor(.bold) catch {};
     try t.writer.print(format ++ "\n", args);
+    t.setColor(.reset) catch {};
 }
 
-pub fn main(init: std.process.Init) void {
-    const env = init.environ_map;
+const usage =
+    \\Usage: {s} [options] file..
+    \\
+    \\Options:
+    \\  --help           Display this message
+    \\  --name <name>    Write the output to <name>
+    \\
+;
+
+pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const gpa = init.gpa;
     const arena = init.arena.allocator();
-    _ = env;
-    _ = io;
+
+    const args = try init.minimal.args.toSlice(arena);
+
+    return mainArgs(gpa, arena, io, args);
+}
+
+fn mainArgs(
+    gpa: Allocator,
+    arena: Allocator,
+    io: Io,
+    args: []const [:0]const u8,
+) !void {
+    var provided_name: ?[]const u8 = null;
+    var src_file: ?[]const u8 = null;
     _ = gpa;
     _ = arena;
+
+    var args_iter: ArgsIterator = .{
+        .args = args[1..],
+    };
+
+    //args_loop: while (args_iter.next()) |arg| {
+    while (args_iter.next()) |arg| {
+        if (mem.startsWith(u8, arg, "-")) {
+            if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
+                var buf: [64]u8 = undefined;
+                var wrt = Io.File.stdout().writer(io, &buf);
+                try wrt.interface.print(usage, .{args[0]});
+                return cleanExit(io);
+            } else if (mem.eql(u8, arg, "--name")) {
+                provided_name = args_iter.nextOrFatal();
+                if (!mem.eql(u8, provided_name.?, path.basename(provided_name.?)))
+                    fatal("invalid package name '{s}': cannot contain folder separators", .{provided_name.?});
+            } else {
+                fatal("unrecognized parameter: '{s}'", .{arg});
+            }
+        } else {
+            src_file = arg;
+            std.log.info("src_file is {s}", .{src_file.?});
+        }
+    }
 }
+
+const ArgsIterator = struct {
+    args: []const []const u8,
+    i: usize = 0,
+
+    pub fn next(it: *@This()) ?[]const u8 {
+        if (it.i >= it.args.len) return null;
+        defer it.i += 1;
+        return it.args[it.i];
+    }
+
+    pub fn nextOrFatal(it: *@This()) []const u8 {
+        return it.next() orelse fatal("expected argument after {s}", .{it.args[it.i - 1]});
+    }
+};
