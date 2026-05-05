@@ -38,7 +38,7 @@ pub fn logInner(
     }) catch {};
     t.setColor(.bold) catch {};
     try t.writer.writeAll(level.asText());
-    if (scope != .default) try t.writer.print("({t})", .{scope});
+    if (scope != .default) try t.writer.print(" ({t})", .{scope});
     try t.writer.writeAll(": ");
     t.setColor(.reset) catch {};
     t.setColor(.bold) catch {};
