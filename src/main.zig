@@ -156,6 +156,8 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
             .unknown => fatal("unrecognized file extension of parameter '{s}'", .{arg}),
         }
     }
+
+    if (src_file == null) fatal("expected positional argument or --name [name]", .{});
 }
 
 const usage_init =
