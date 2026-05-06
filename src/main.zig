@@ -1,18 +1,14 @@
 const std = @import("std");
-
 const Io = std.Io;
 const path = Io.Dir.path;
-
 const mem = std.mem;
 const Allocator = mem.Allocator;
-
 const process = std.process;
 const fatal = process.fatal;
 const exit = process.exit;
 const cleanExit = process.cleanExit;
 
 const Compilation = @import("Compilation.zig");
-
 const zon2tct = @import("zon2tct");
 
 pub const std_options: std.Options = .{
