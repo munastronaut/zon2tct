@@ -93,7 +93,7 @@ fn mainArgs(gpa: Allocator, arena: Allocator, io: Io, args: []const [:0]const u8
 }
 
 fn printUsage(io: Io, comptime str: []const u8, exe_name: []const u8) !void {
-    var buf: [64]u8 = undefined;
+    var buf: [256]u8 = undefined;
     var wrt = Io.File.stdout().writer(io, &buf);
     try wrt.interface.print(str, .{exe_name});
     try wrt.interface.flush();
@@ -134,7 +134,6 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
         .args = args[2..],
     };
 
-    //args_loop: while (args_iter.next()) |arg| {
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
             if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
@@ -174,21 +173,22 @@ fn cmdInit(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !
     _ = arena;
 
     var template: enum { example, minimal } = .example;
-    {
-        var i: usize = 2;
-        while (i < args.len) : (i += 1) {
-            const arg = args[i];
-            if (mem.startsWith(u8, arg, "-")) {
-                if (mem.eql(u8, arg, "-m") or mem.eql(u8, arg, "--minimal")) {
-                    template = .minimal;
-                } else if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
-                    return printUsage(io, usage_init, args[0]);
-                } else {
-                    fatal("unrecognized parameter: '{s}'", .{arg});
-                }
+
+    var args_iter: ArgsIterator = .{
+        .args = args[2..],
+    };
+
+    while (args_iter.next()) |arg| {
+        if (mem.startsWith(u8, arg, "-")) {
+            if (mem.eql(u8, arg, "-m") or mem.eql(u8, arg, "--minimal")) {
+                template = .minimal;
+            } else if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
+                return printUsage(io, usage_init, args[0]);
             } else {
-                fatal("unexpected extra parameter: '{s}'", .{arg});
+                fatal("unrecognized parameter: '{s}'", .{arg});
             }
+        } else {
+            fatal("unexpected extra parameter: '{s}'", .{arg});
         }
     }
 }
