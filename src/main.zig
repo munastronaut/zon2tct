@@ -57,12 +57,12 @@ const usage =
     \\Usage: {s} [command] [options]
     \\
     \\Commands:
-    \\  build        Create scenario code from source
-    \\  init         Create a template file in the current directory
-    \\  help         Print this help and exit
+    \\  build         Create scenario code from source
+    \\  init          Create a template file in the current directory
+    \\  help          Print this help and exit
     \\
     \\Options:
-    \\  -h, --help   Print command-specific usage
+    \\  -h, --help    Print command-specific usage
     \\
 ;
 
@@ -119,8 +119,8 @@ const usage_build =
     \\Usage: {s} build [options] file
     \\
     \\Options:
-    \\  -h, --help        Print this help and exit
-    \\  --name [name]     Write the output to name
+    \\  -h, --help       Print this help and exit
+    \\  --name [name]    Write the output to name
     \\
 ;
 
