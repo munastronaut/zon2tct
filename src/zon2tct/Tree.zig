@@ -4,10 +4,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const zon2tct = @import("../zon2tct.zig");
-const Lexer = zon2tct.Lexer;
+const Lexer = @import("Lexer.zig");
 const Token = Lexer.Token;
-const Parse = zon2tct.Parse;
+const Parse = @import("Parse.zig");
 
 src: [:0]const u8,
 
@@ -154,7 +153,7 @@ pub fn parseTokens(
     tokens: TokenList.Slice,
 ) Allocator.Error!Tree {
     var p: Parse = .{
-        .allocator = allocator,
+        .gpa = allocator,
         .src = src,
         .tokens = tokens,
         .tok_i = 0,
@@ -225,3 +224,21 @@ pub fn tokenSlice(t: Tree, token_index: TokenIndex) []const u8 {
     assert(tok.id == tok_id);
     return t.src[tok.loc.start..tok.loc.end];
 }
+
+pub const Error = struct {
+    id: Id,
+    is_note: bool = false,
+    token_is_prev: bool = false,
+    token: TokenIndex,
+    extra: union {
+        none: void,
+        expected_id: Token.Id,
+        offset: usize,
+    } = .{ .none = {} },
+
+    pub const Id = enum {
+        expected_expr,
+        expected_prefix_expr,
+        expected_token,
+    };
+};
