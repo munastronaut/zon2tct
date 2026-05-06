@@ -84,7 +84,7 @@ fn mainArgs(gpa: Allocator, arena: Allocator, io: Io, args: []const [:0]const u8
     if (mem.eql(u8, cmd, "build")) {
         return buildOutput(gpa, arena, io, args);
     } else if (mem.eql(u8, cmd, "init")) {
-        return cmdInit(gpa, arena, io, args);
+        return cmdInit(arena, io, args);
     } else if (mem.eql(u8, cmd, "help") or mem.eql(u8, cmd, "-h") or mem.eql(u8, cmd, "--help")) {
         return printUsage(io, usage, args[0]);
     } else {
@@ -165,12 +165,12 @@ const usage_init =
     \\Options:
     \\  -m, --minimal    Use minimal init template
     \\  -h, --help       Print this help and exit
+    \\  --name [name]    Specify project name for template file
     \\
 ;
 
-fn cmdInit(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !void {
-    _ = gpa;
-    _ = arena;
+fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
+    var proj_name: ?[]const u8 = null;
 
     var template: enum { example, minimal } = .example;
 
@@ -184,6 +184,10 @@ fn cmdInit(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !
                 template = .minimal;
             } else if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
                 return printUsage(io, usage_init, args[0]);
+            } else if (mem.eql(u8, arg, "--name")) {
+                proj_name = args_iter.nextOrFatal();
+                if (!mem.eql(u8, proj_name.?, path.basename(proj_name.?)))
+                    fatal("invalid file name '{s}': cannot contain folder separators", .{proj_name.?});
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
@@ -191,4 +195,39 @@ fn cmdInit(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !
             fatal("unexpected extra parameter: '{s}'", .{arg});
         }
     }
+
+    const filename = try mem.concat(arena, u8, &.{ proj_name orelse "scenario", ".zon" });
+
+    switch (template) {
+        .example => {
+            const str = @embedFile("templates/template.zon");
+            if (writeSimpleTemplateFile(io, filename, str)) |_| {
+                std.log.info("created {s}", .{filename});
+            } else |err| switch (err) {
+                error.PathAlreadyExists => std.log.info("preserving already existing file: {s}", .{
+                    filename,
+                }),
+                else => std.log.err("unable to write {s}: {s}\n", .{ filename, @errorName(err) }),
+            }
+            return cleanExit(io);
+        },
+        .minimal => {
+            const str = @embedFile("templates/template_minimal.zon");
+            writeSimpleTemplateFile(io, filename, str) catch |err| switch (err) {
+                error.PathAlreadyExists => fatal("refusing to overwrite '{s}'", .{filename}),
+                else => fatal("failed to create '{s}': {s}", .{ filename, @errorName(err) }),
+            };
+            std.log.info("created {s}", .{filename});
+            return cleanExit(io);
+        },
+    }
+}
+
+fn writeSimpleTemplateFile(io: Io, filename: []const u8, str: []const u8) !void {
+    const f = try Io.Dir.cwd().createFile(io, filename, .{ .exclusive = true });
+    defer f.close(io);
+    var buf: [4096]u8 = undefined;
+    var fw = f.writer(io, &buf);
+    try fw.interface.writeAll(str);
+    try fw.interface.flush();
 }
