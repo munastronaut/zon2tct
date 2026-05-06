@@ -111,7 +111,7 @@ const ArgsIterator = struct {
     }
 
     pub fn nextOrFatal(it: *@This()) []const u8 {
-        return it.next() orelse fatal("expected argument after {s}", .{it.args[it.i - 1]});
+        return it.next() orelse fatal("expected argument after '{s}'", .{it.args[it.i - 1]});
     }
 };
 
@@ -150,7 +150,6 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
                 if (src_file) |_| {
                     fatal("too many positional arguments, only one source file is supported", .{});
                 } else src_file = arg;
-                std.log.debug("src_file is {s}", .{src_file.?});
             },
             .unknown => fatal("unrecognized file extension of parameter '{s}'", .{arg}),
         }
@@ -204,10 +203,10 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
             if (writeSimpleTemplateFile(io, filename, str)) |_| {
                 std.log.info("created {s}", .{filename});
             } else |err| switch (err) {
-                error.PathAlreadyExists => std.log.info("preserving already existing file: {s}", .{
+                error.PathAlreadyExists => std.log.info("preserving already existing file: '{s}'", .{
                     filename,
                 }),
-                else => std.log.err("unable to write {s}: {s}\n", .{ filename, @errorName(err) }),
+                else => std.log.err("unable to write '{s}': {s}\n", .{ filename, @errorName(err) }),
             }
             return cleanExit(io);
         },
