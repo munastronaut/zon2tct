@@ -1,0 +1,100 @@
+.{
+    // You can define your "aliases" here, which are resolved at build time.
+    // Currently, there are only three groups: candidates, states, and issues
+    .definitions = .{
+        .candidates = .{
+            // `.cand1` will be resolved to the integer 100
+            .cand1 = 100,
+            .cand2 = 101,
+        },
+        .states = .{
+            .state1 = 50,
+            .state2 = 51,
+        },
+        .issues = .{
+            .issue1 = 150,
+        },
+    },
+    // You can define a player candidate, and it must be either a valid integer or an alias
+    .player_candidate = .cand1,
+    // This is where you define your questions.
+    // Questions usually have the following fields:
+    //
+    // [name] - Optional
+    // text - The text of the question
+    // answers - An array of answers
+    .questions = .{
+        .{
+            // You can assign names to your questions and answers to refer back to them
+            // later on in the JavaScript file, if you're implementing CYOA.
+            // The tool will export a JavaScript object inside the output file which
+            // contains the names for the questions or answers.
+            .name = "question1",
+            .text = "First question",
+            // Answers usually have the following fields:
+            //
+            // [name] - Optional
+            // text - The text of the answer
+            // [feedback] - The answer feedback
+            // [global_effects] - An array of global effects
+            // [state_effects] - An array of state effects
+            // [issue_effects] - An array of issue effects
+            .answers = .{
+                .{
+                    .name = "answer1_q1",
+                    .text = "First answer",
+                    .feedback =
+                    \\multiline
+                    \\string
+                    \\feedback
+                    ,
+                    .global_effects = .{
+                        .{
+                            .target = .cand1,
+                            .effect = 0.01,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .state2,
+                            .effects = .{
+                                .{
+                                    .target = .cand2,
+                                    .effect = -0.1,
+                                },
+                            },
+                        },
+                    },
+                    .issue_effects = .{
+                        .{
+                            .issue = .issue1,
+                            .score = 0.2,
+                            .importance = 0.5,
+                        },
+                    },
+                },
+                .{
+                    .text = "Second answer",
+                    .feedback = "Feedback",
+                    .global_effects = .{
+                        .{
+                            .target = .cand2,
+                            .effect = 0.9,
+                        },
+                    },
+                    .state_effects = .{
+                        .{
+                            .state = .state1,
+                            .effects = .{
+                                .{
+                                    .target = .cand2,
+                                    .effect = -0.5,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
