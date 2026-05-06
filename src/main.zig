@@ -11,6 +11,8 @@ const fatal = process.fatal;
 const exit = process.exit;
 const cleanExit = process.cleanExit;
 
+const Compilation = @import("Compilation.zig");
+
 const zon2tct = @import("zon2tct");
 
 pub const std_options: std.Options = .{
@@ -60,7 +62,7 @@ const usage =
     \\
     \\Options:
     \\  --help           Display this message
-    \\  --name <name>    Write the output to <name>
+    \\  --name [name]    Write the output to [name]
     \\
 ;
 
@@ -96,19 +98,27 @@ fn mainArgs(
                 var buf: [64]u8 = undefined;
                 var wrt = Io.File.stdout().writer(io, &buf);
                 try wrt.interface.print(usage, .{args[0]});
+                try wrt.interface.flush();
                 return cleanExit(io);
             } else if (mem.eql(u8, arg, "--name")) {
                 provided_name = args_iter.nextOrFatal();
                 if (!mem.eql(u8, provided_name.?, path.basename(provided_name.?)))
-                    fatal("invalid package name '{s}': cannot contain folder separators", .{provided_name.?});
+                    fatal("invalid file name '{s}': cannot contain folder separators", .{provided_name.?});
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
-        } else {
-            src_file = arg;
-            std.log.info("src_file is {s}", .{src_file.?});
+        } else switch (Compilation.classifyFileExt(arg)) {
+            .plaintext => {
+                if (src_file) |_| {
+                    fatal("too many positional arguments, only one source file is supported", .{});
+                } else src_file = arg;
+                std.log.debug("src_file is {s}", .{src_file.?});
+            },
+            .unknown => fatal("unrecognized file extension of parameter '{s}'", .{arg}),
         }
     }
+
+    if (src_file == null) fatal("expected a positional argument or --name [name]", .{});
 }
 
 const ArgsIterator = struct {
