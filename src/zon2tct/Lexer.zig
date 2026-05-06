@@ -1,3 +1,5 @@
+const Lexer = @This();
+
 const std = @import("std");
 
 pub const Token = struct {
@@ -31,8 +33,6 @@ pub const Token = struct {
         end: u32,
     };
 };
-
-const Lexer = @This();
 
 src: [:0]const u8,
 idx: u32,

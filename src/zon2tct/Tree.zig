@@ -1,15 +1,13 @@
+const Tree = @This();
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
 const zon2tct = @import("../zon2tct.zig");
-
 const Lexer = zon2tct.Lexer;
 const Token = Lexer.Token;
-
 const Parse = zon2tct.Parse;
-
-const Tree = @This();
 
 src: [:0]const u8,
 

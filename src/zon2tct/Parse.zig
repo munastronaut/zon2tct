@@ -1,7 +1,7 @@
+const Parse = @This();
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
-const Parse = @This();
 
 const zon2tct = @import("../zon2tct.zig");
 

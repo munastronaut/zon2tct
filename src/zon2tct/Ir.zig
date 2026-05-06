@@ -1,6 +1,6 @@
-const std = @import("std");
-
 const Ir = @This();
+
+const std = @import("std");
 
 string_bytes: []u8,
 payload: Payload,
