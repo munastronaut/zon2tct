@@ -54,11 +54,15 @@ pub fn logInner(
 }
 
 const usage =
-    \\Usage: {s} [options] file..
+    \\Usage: {s} [command] [options]
+    \\
+    \\Commands:
+    \\  build        Create scenario code from source
+    \\  init         Create a template file in the current directory
+    \\  help         Print this help and exit
     \\
     \\Options:
-    \\  --help           Display this message
-    \\  --name [name]    Write the output to [name]
+    \\  -h, --help   Print command-specific usage
     \\
 ;
 
@@ -69,33 +73,72 @@ pub fn main(init: std.process.Init) !void {
 
     const args = try init.minimal.args.toSlice(arena);
 
+    if (args.len <= 1) fatal("expected command argument", .{});
+
     return mainArgs(gpa, arena, io, args);
 }
 
-fn mainArgs(
-    gpa: Allocator,
-    arena: Allocator,
-    io: Io,
-    args: []const [:0]const u8,
-) !void {
+fn mainArgs(gpa: Allocator, arena: Allocator, io: Io, args: []const [:0]const u8) !void {
+    const cmd = args[1];
+
+    if (mem.eql(u8, cmd, "build")) {
+        return buildOutput(gpa, arena, io, args);
+    } else if (mem.eql(u8, cmd, "init")) {
+        return cmdInit(gpa, arena, io, args);
+    } else if (mem.eql(u8, cmd, "help") or mem.eql(u8, cmd, "-h") or mem.eql(u8, cmd, "--help")) {
+        return printUsage(io, usage, args[0]);
+    } else {
+        fatal("unrecognized command: '{s}'", .{cmd});
+    }
+}
+
+fn printUsage(io: Io, comptime str: []const u8, exe_name: []const u8) !void {
+    var buf: [64]u8 = undefined;
+    var wrt = Io.File.stdout().writer(io, &buf);
+    try wrt.interface.print(str, .{exe_name});
+    try wrt.interface.flush();
+    return cleanExit(io);
+}
+
+const ArgsIterator = struct {
+    args: []const []const u8,
+    i: usize = 0,
+
+    pub fn next(it: *@This()) ?[]const u8 {
+        if (it.i >= it.args.len) return null;
+        defer it.i += 1;
+        return it.args[it.i];
+    }
+
+    pub fn nextOrFatal(it: *@This()) []const u8 {
+        return it.next() orelse fatal("expected argument after {s}", .{it.args[it.i - 1]});
+    }
+};
+
+const usage_build =
+    \\Usage: {s} build [options] file
+    \\
+    \\Options:
+    \\  -h, --help        Print this help and exit
+    \\  --name [name]     Write the output to name
+    \\
+;
+
+fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !void {
     var provided_name: ?[]const u8 = null;
     var src_file: ?[]const u8 = null;
     _ = gpa;
     _ = arena;
 
     var args_iter: ArgsIterator = .{
-        .args = args[1..],
+        .args = args[2..],
     };
 
     //args_loop: while (args_iter.next()) |arg| {
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
             if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
-                var buf: [64]u8 = undefined;
-                var wrt = Io.File.stdout().writer(io, &buf);
-                try wrt.interface.print(usage, .{args[0]});
-                try wrt.interface.flush();
-                return cleanExit(io);
+                return printUsage(io, usage_build, args[0]);
             } else if (mem.eql(u8, arg, "--name")) {
                 provided_name = args_iter.nextOrFatal();
                 if (!mem.eql(u8, provided_name.?, path.basename(provided_name.?)))
@@ -113,21 +156,37 @@ fn mainArgs(
             .unknown => fatal("unrecognized file extension of parameter '{s}'", .{arg}),
         }
     }
-
-    if (src_file == null) fatal("expected a positional argument or --name [name]", .{});
 }
 
-const ArgsIterator = struct {
-    args: []const []const u8,
-    i: usize = 0,
+const usage_init =
+    \\Usage: {s} init [options]
+    \\
+    \\Options:
+    \\  -m, --minimal    Use minimal init template
+    \\  -h, --help       Print this help and exit
+    \\
+;
 
-    pub fn next(it: *@This()) ?[]const u8 {
-        if (it.i >= it.args.len) return null;
-        defer it.i += 1;
-        return it.args[it.i];
-    }
+fn cmdInit(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !void {
+    _ = gpa;
+    _ = arena;
 
-    pub fn nextOrFatal(it: *@This()) []const u8 {
-        return it.next() orelse fatal("expected argument after {s}", .{it.args[it.i - 1]});
+    var template: enum { example, minimal } = .example;
+    {
+        var i: usize = 2;
+        while (i < args.len) : (i += 1) {
+            const arg = args[i];
+            if (mem.startsWith(u8, arg, "-")) {
+                if (mem.eql(u8, arg, "-m") or mem.eql(u8, arg, "--minimal")) {
+                    template = .minimal;
+                } else if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
+                    return printUsage(io, usage_init, args[0]);
+                } else {
+                    fatal("unrecognized parameter: '{s}'", .{arg});
+                }
+            } else {
+                fatal("unexpected extra parameter: '{s}'", .{arg});
+            }
+        }
     }
-};
+}
