@@ -101,9 +101,6 @@ pub const Node = struct {
         struct_init_dot_two_comma,
         struct_init_dot,
         struct_init_dot_comma,
-        //field_assignment,
-        //struct_init,
-        //array_init,
     };
 
     pub const Data = union {
