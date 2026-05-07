@@ -14,6 +14,8 @@ tokens: TokenList.Slice,
 nodes: NodeList.Slice,
 extra_data: []u32,
 
+errors: []const Error,
+
 pub const TokenList = std.MultiArrayList(struct {
     id: Token.Id,
     start: u32,
@@ -83,14 +85,16 @@ pub const Node = struct {
 
     pub const Id = enum {
         root,
+        negation,
+        char_literal,
         number_literal,
+        identifier,
+        enum_literal,
         string_literal,
         multiline_string_literal,
-        enum_literal,
-        negation,
-        field_assignment,
-        struct_init,
-        array_init,
+        //field_assignment,
+        //struct_init,
+        //array_init,
     };
 
     pub const Data = union {
@@ -113,22 +117,22 @@ pub const Location = struct {
     line_end: u32,
 };
 
-pub fn tokenStart(t: *const Tree, token_index: TokenIndex) ByteOffset {
-    return t.tokens.items(.start)[token_index];
+pub fn tokenStart(t: *const Tree, tok_idx: TokenIndex) ByteOffset {
+    return t.tokens.items(.start)[tok_idx];
 }
 
-pub fn tokenId(t: *const Tree, token_index: TokenIndex) Token.Id {
-    return t.tokens.items(.id)[token_index];
+pub fn tokenId(t: *const Tree, tok_idx: TokenIndex) Token.Id {
+    return t.tokens.items(.id)[tok_idx];
 }
 
-pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
+pub fn parse(gpa: Allocator, src: [:0]const u8) Allocator.Error!Tree {
     var toks: Tree.TokenList = .empty;
-    defer toks.deinit(allocator);
+    defer toks.deinit(gpa);
 
     var lexer = Lexer.init(src);
     while (true) {
         const tok = lexer.next();
-        try toks.append(allocator, .{
+        try toks.append(gpa, .{
             .id = tok.id,
             .start = tok.loc.start,
         });
@@ -136,56 +140,60 @@ pub fn parse(allocator: Allocator, src: [:0]const u8) Allocator.Error!Tree {
     }
 
     var toks_slice = toks.toOwnedSlice();
-    errdefer toks_slice.deinit(allocator);
-    return parseTokens(allocator, src, toks_slice);
-}
-
-pub fn deinit(t: *Tree, allocator: Allocator) void {
-    t.tokens.deinit(allocator);
-    t.nodes.deinit(allocator);
-    allocator.free(t.extra_data);
-    t.* = undefined;
+    errdefer toks_slice.deinit(gpa);
+    return parseTokens(gpa, src, toks_slice);
 }
 
 pub fn parseTokens(
-    allocator: Allocator,
+    gpa: Allocator,
     src: [:0]const u8,
     tokens: TokenList.Slice,
 ) Allocator.Error!Tree {
     var p: Parse = .{
-        .gpa = allocator,
+        .gpa = gpa,
         .src = src,
         .tokens = tokens,
         .tok_i = 0,
+        .errors = .empty,
         .nodes = .empty,
         .extra_data = .empty,
         .scratch = .empty,
     };
-    defer p.nodes.deinit(allocator);
-    defer p.extra_data.deinit(allocator);
-    defer p.scratch.deinit(allocator);
+    defer p.errors.deinit(gpa);
+    defer p.nodes.deinit(gpa);
+    defer p.extra_data.deinit(gpa);
+    defer p.scratch.deinit(gpa);
 
     try p.parse();
 
-    const extra_data = try p.extra_data.toOwnedSlice(allocator);
-    errdefer allocator.free(extra_data);
+    try p.extra_data.shrinkToLen(gpa);
+    try p.errors.shrinkToLen(gpa);
 
     return .{
         .src = src,
         .tokens = tokens,
         .nodes = p.nodes.toOwnedSlice(),
-        .extra_data = extra_data,
+        .extra_data = p.extra_data.toOwnedSliceAssert(),
+        .errors = p.errors.toOwnedSliceAssert(),
     };
 }
 
-pub fn tokenLocation(t: Tree, start_offset: ByteOffset, token_index: TokenIndex) Location {
+pub fn deinit(t: *Tree, gpa: Allocator) void {
+    t.tokens.deinit(gpa);
+    t.nodes.deinit(gpa);
+    gpa.free(t.extra_data);
+    gpa.free(t.errors);
+    t.* = undefined;
+}
+
+pub fn tokenLocation(t: Tree, start_offset: ByteOffset, tok_idx: TokenIndex) Location {
     var loc: Location = .{
         .line = 1,
         .column = 1,
         .line_start = start_offset,
         .line_end = t.src.len,
     };
-    const tok_start = t.tokenStart(token_index);
+    const tok_start = t.tokenStart(tok_idx);
 
     while (std.mem.findScalarPos(u8, t.src, loc.line_start, '\n')) |i| {
         if (i >= tok_start) break;
@@ -213,12 +221,12 @@ pub fn tokenLocation(t: Tree, start_offset: ByteOffset, token_index: TokenIndex)
     return loc;
 }
 
-pub fn tokenSlice(t: Tree, token_index: TokenIndex) []const u8 {
-    const tok_id = t.tokenId(token_index);
+pub fn tokenSlice(t: Tree, tok_idx: TokenIndex) []const u8 {
+    const tok_id = t.tokenId(tok_idx);
 
     var lexer: Lexer = .{
         .src = t.src,
-        .idx = t.tokenStart(token_index),
+        .idx = t.tokenStart(tok_idx),
     };
     const tok = lexer.next();
     assert(tok.id == tok_id);
@@ -239,6 +247,7 @@ pub const Error = struct {
     pub const Id = enum {
         expected_expr,
         expected_prefix_expr,
+        expected_initializer,
         expected_token,
     };
 };
