@@ -141,8 +141,82 @@ fn parseValue(p: *Parse) Error!?Node.Index {
             .l_brace => {
                 const l_brace = p.tok_i + 1;
                 p.tok_i = l_brace + 1;
-                // TODO
+
+                const scratch_top = p.scratch.items.len;
+                defer p.scratch.shrinkRetainingCapacity(scratch_top);
+                const opt_field_init = try p.parseFieldInit();
+                if (opt_field_init) |field_init| {
+                    try p.scratch.append(p.gpa, field_init);
+                    while (true) {
+                        switch (p.tokenId(p.tok_i)) {
+                            .comma => p.tok_i += 1,
+                            .r_brace => {
+                                p.tok_i += 1;
+                                break;
+                            },
+                            .r_paren => return p.failExpected(.r_brace),
+                            else => try p.warn(.expected_comma_after_initializer),
+                        }
+                    }
+                    const comma = p.tokenId(p.tok_i - 2) == .comma;
+                    const inits = p.scratch.items[scratch_top..];
+                    std.debug.assert(inits.len != 0);
+                    if (inits.len <= 2) {
+                        return try p.addNode(.{
+                            .id = if (comma) .struct_init_dot_two_comma else .struct_init_dot_two,
+                            .main_tok = l_brace,
+                            .data = .{
+                                .opt_node_and_opt_node = .{
+                                    if (inits.len >= 1) .fromOptional(inits[0]) else .none,
+                                    if (inits.len >= 2) .fromOptional(inits[1]) else .none,
+                                },
+                            },
+                        });
+                    } else {
+                        return try p.addNode(.{
+                            .id = if (comma) .struct_init_dot_comma else .struct_init_dot,
+                            .main_tok = l_brace,
+                            .data = .{ .extra_range = p.listToSpan(inits) },
+                        });
+                    }
+                }
+
+                while (true) {
+                    if (p.eatToken(.r_brace)) |_| break;
+                    const elem_init = try p.expectValue();
+                    try p.scratch.append(p.gpa, elem_init);
+                    switch (p.tokenId(p.tok_i)) {
+                        .comma => p.tok_i += 1,
+                        .r_brace => {
+                            p.tok_i += 1;
+                            break;
+                        },
+                        .r_paren => return p.failExpected(.r_brace),
+                        else => try p.warn(.expected_comma_after_initializer),
+                    }
+                }
+                const comma = p.tokenId(p.tok_i - 2) == .comma;
+                const inits = p.scratch.items[scratch_top..];
+                if (inits.len <= 2) {
+                    return try p.addNode(.{
+                        .id = if (inits.len == 0) .struct_init_dot_two else if (comma) .array_init_dot_two_comma else .array_init_dot_two,
+                        .main_tok = l_brace,
+                        .data = .{
+                            .opt_node_and_opt_node = .{
+                                if (inits.len >= 1) inits[0].toOptional() else .none,
+                                if (inits.len >= 2) inits[1].toOptional() else .none,
+                            },
+                        },
+                    });
+                } else {
+                    return try p.addNode(.{
+                        .id = if (comma) .array_init_dot_comma else .array_init_dot,
+                        .main_tok = l_brace,
+                        .data = .{ .extra_range = p.listToSpan(inits) },
+                    });
+                }
             },
+            else => return null,
         },
     }
 }
@@ -178,6 +252,14 @@ fn expectFieldInit(p: *Parse) Error!?Node.Index {
         return try p.expectValue();
 
     return p.fail(.expected_initializer);
+}
+
+fn listToSpan(p: *Parse, list: []const Node.Index) Allocator.Error!Node.SubRange {
+    try p.extra_data.appendSlice(p.gpa, @ptrCast(list));
+    return .{
+        .start = @enumFromInt(p.extra_data.items.len - list.len),
+        .end = @enumFromInt(p.extra_data.items.len),
+    };
 }
 
 fn addNode(p: *Parse, elem: Tree.Node) Allocator.Error!Node.Index {
