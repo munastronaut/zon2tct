@@ -2,10 +2,9 @@ const Parse = @This();
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
 
-const zon2tct = @import("../zon2tct.zig");
-
-const Tree = zon2tct.Tree;
+const Tree = @import("Tree.zig");
 const Node = Tree.Node;
 const Token = Tree.Token;
 const TokenIndex = Tree.TokenIndex;
@@ -29,10 +28,6 @@ fn tokenStart(p: *const Parse, tok_idx: TokenIndex) Tree.ByteOffset {
     return p.tokens.items(.start)[tok_idx];
 }
 
-fn expectExpr(p: *Parse) Error!Node.Index {
-    return try p.parseExpr() orelse p.fail(.expected_expr);
-}
-
 fn warn(p: *Parse, id: Tree.Error.Id) Error {
     @branchHint(.cold);
     try p.warnMsg(.{ .id = id, .token = p.tok_i });
@@ -52,6 +47,7 @@ fn warnMsg(p: *Parse, msg: Tree.Error) Allocator.Error!void {
     switch (msg.id) {
         .expected_expr,
         .expected_token,
+        .expected_prefix_expr,
         => if (msg.token != 0 and p.tokensOnSameLine(msg.token - 1, msg.token)) {
             var copy = msg;
             copy.token_is_prev = true;
@@ -89,17 +85,70 @@ pub fn parse(p: *Parse) !void {
         .main_tok = 0,
         .data = undefined,
     });
+    const node_idx = p.expectValue() catch |err| switch (err) {
+        error.ParseError => {
+            assert(p.errors.items.len > 0);
+            return;
+        },
+        else => |e| return e,
+    };
+    if (p.tokenId(p.tok_i) != .eof) try p.warnExpected(.eof);
+    p.nodes.items(.data)[0] = .{ .node = node_idx };
 }
 
-fn parseExpr(p: *Parse) Error!?Node.Index {
+fn parseValue(p: *Parse) Error!?Node.Index {
     switch (p.tokenId(p.tok_i)) {
-        .number_literal => {
+        .char_literal => return try p.addNode(.{
+            .id = .char_literal,
+            .main_tok = p.nextToken(),
+            .data = undefined,
+        }),
+        .number_literal => return try p.addNode(.{
+            .id = .number_literal,
+            .main_tok = p.nextToken(),
+            .data = undefined,
+        }),
+        .string_literal => return try p.addNode(.{
+            .id = .string_literal,
+            .main_tok = p.nextToken(),
+            .data = undefined,
+        }),
+        .multiline_string_literal_line => {
+            const first_line = p.nextToken();
+            while (p.tokenId(p.tok_i) == .multiline_string_literal_line)
+                p.tok_i += 1;
+
             return try p.addNode(.{
-                .id = .number_literal,
-                .main_tok = p.nextToken(),
+                .id = .multiline_string_literal,
+                .main_tok = first_line,
+                .data = .{ .token_and_token = .{ first_line, p.tok_i - 1 } },
             });
         },
+        .identifier => return try p.addNode(.{
+            .id = .identifier,
+            .main_tok = p.nextToken(),
+            .data = undefined,
+        }),
+        .period => switch (p.tokenId(p.tok_i + 1)) {
+            .identifier => {
+                p.tok_i += 1;
+                return try p.addNode(.{
+                    .id = .enum_literal,
+                    .main_tok = p.nextToken(),
+                    .data = undefined,
+                });
+            },
+            .l_brace => {
+                const l_brace = p.tok_i + 1;
+                p.tok_i = l_brace + 1;
+                // TODO
+            },
+        },
     }
+}
+
+fn expectValue(p: *Parse) Error!Node.Index {
+    return try p.parseValue() orelse p.fail(.expected_expr);
 }
 
 fn parsePrefixExpr(p: *Parse) Error!?Node.Index {
@@ -117,6 +166,20 @@ fn expectPrefixExpr(p: *Parse) Error!Node.Index {
     return try p.parsePrefixExpr() orelse return p.fail(.expected_prefix_expr);
 }
 
+fn parseFieldInit(p: *Parse) Error!?Node.Index {
+    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_|
+        return try p.expectValue();
+
+    return null;
+}
+
+fn expectFieldInit(p: *Parse) Error!?Node.Index {
+    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_|
+        return try p.expectValue();
+
+    return p.fail(.expected_initializer);
+}
+
 fn addNode(p: *Parse, elem: Tree.Node) Allocator.Error!Node.Index {
     const res: Node.Index = @enumFromInt(p.nodes.len);
     try p.nodes.append(p.gpa, elem);
@@ -125,6 +188,18 @@ fn addNode(p: *Parse, elem: Tree.Node) Allocator.Error!Node.Index {
 
 fn tokensOnSameLine(p: *Parse, token1: TokenIndex, token2: TokenIndex) bool {
     return std.mem.findScalar(u8, p.src[p.tokenStart(token1)..p.tokenStart(token2)], '\n') != null;
+}
+
+fn eatToken(p: *Parse, id: Token.Id) ?TokenIndex {
+    return if (p.tokenId(p.tok_i) == id) p.nextToken() else null;
+}
+
+fn eatTokens(p: *Parse, ids: []const Token.Id) ?TokenIndex {
+    const avail_ids = p.tokens.items(.id)[p.tok_i..];
+    if (!std.mem.startsWith(Token.Id, avail_ids, ids)) return null;
+    const result = p.tok_i;
+    p.tok_i += @intCast(ids.len);
+    return result;
 }
 
 fn nextToken(p: *Parse) TokenIndex {
