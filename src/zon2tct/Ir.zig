@@ -1,9 +1,17 @@
 const Ir = @This();
 
 const std = @import("std");
+const assert = std.debug.assert;
+const Allocator = std.mem.Allocator;
 
+const Tree = @import("Tree.zig");
+
+extra: []u32,
 string_bytes: []u8,
 payload: Payload,
+
+compile_errors: []CompileError,
+error_notes: []CompileError.Note,
 
 pub const Payload = struct {
     questions: std.ArrayList(Question),
@@ -12,7 +20,7 @@ pub const Payload = struct {
     state_effects: std.ArrayList(StateEffect),
     issue_effects: std.ArrayList(IssueEffect),
 
-    pub fn deinit(p: *Payload, gpa: std.mem.Allocator) void {
+    pub fn deinit(p: *Payload, gpa: Allocator) void {
         p.questions.deinit(gpa);
         p.answers.deinit(gpa);
         p.global_effects.deinit(gpa);
@@ -62,9 +70,21 @@ pub const Payload = struct {
     };
 };
 
-pub fn deinit(ir: *Ir, gpa: std.mem.Allocator) void {
+pub fn hasCompileErrors(ir: Ir) bool {
+    if (ir.compile_errors.len > 0) {
+        assert(ir.extra.len == 0);
+        return true;
+    } else {
+        assert(ir.error_notes.len == 0);
+        return false;
+    }
+}
+
+pub fn deinit(ir: *Ir, gpa: Allocator) void {
     ir.payload.deinit(gpa);
     gpa.free(ir.string_bytes);
+    gpa.free(ir.compile_errors);
+    gpa.free(ir.error_notes);
     ir.* = undefined;
 }
 
@@ -74,4 +94,22 @@ pub const NullTerminatedString = enum(u32) {
         const idx = std.mem.findScalar(u8, ir.string_bytes[@intFromEnum(nts)..], 0).?;
         return ir.string_bytes[@intFromEnum(nts)..][0..idx :0];
     }
+};
+
+pub const CompileError = extern struct {
+    msg: NullTerminatedString,
+    token: Tree.OptionalTokenIndex,
+    node_or_offset: u32,
+    first_note: u32,
+    note_count: u32,
+
+    pub fn getNotes(err: CompileError, ir: Ir) []const Note {
+        return ir.error_notes[err.first_note..][0..err.note_count];
+    }
+
+    pub const Note = extern struct {
+        msg: NullTerminatedString,
+        token: Tree.OptionalTokenIndex,
+        node_or_offset: u32,
+    };
 };
