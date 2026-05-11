@@ -242,16 +242,16 @@ fn expectPrefixExpr(p: *Parse) Error!Node.Index {
 }
 
 fn parseFieldInit(p: *Parse) Error!?Node.Index {
-    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_|
+    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_| {
         return try p.expectValue();
-
+    }
     return null;
 }
 
 fn expectFieldInit(p: *Parse) Error!?Node.Index {
-    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_|
+    if (p.eatTokens(&.{ .period, .identifier, .equal })) |_| {
         return try p.expectValue();
-
+    }
     return p.fail(.expected_initializer);
 }
 
