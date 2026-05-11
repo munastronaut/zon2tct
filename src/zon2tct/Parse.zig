@@ -46,15 +46,16 @@ fn warnMsg(p: *Parse, msg: Tree.Error) Allocator.Error!void {
     @branchHint(.cold);
     switch (msg.id) {
         .expected_expr,
-        .expected_token,
         .expected_prefix_expr,
+        .expected_comma_after_initializer,
+        .expected_token,
         => if (msg.token != 0 and p.tokensOnSameLine(msg.token - 1, msg.token)) {
             var copy = msg;
             copy.token_is_prev = true;
             copy.token -= 1;
             return p.errors.append(p.gpa, copy);
         },
-        //else => {},
+        else => {},
     }
     try p.errors.append(p.gpa, msg);
 }
@@ -115,9 +116,9 @@ fn parseValue(p: *Parse) Error!?Node.Index {
         }),
         .multiline_string_literal_line => {
             const first_line = p.nextToken();
-            while (p.tokenId(p.tok_i) == .multiline_string_literal_line)
+            while (p.tokenId(p.tok_i) == .multiline_string_literal_line) {
                 p.tok_i += 1;
-
+            }
             return try p.addNode(.{
                 .id = .multiline_string_literal,
                 .main_tok = first_line,
