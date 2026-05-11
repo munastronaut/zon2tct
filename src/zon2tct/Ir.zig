@@ -69,11 +69,9 @@ pub fn deinit(ir: *Ir, gpa: std.mem.Allocator) void {
 }
 
 pub const NullTerminatedString = enum(u32) {
-    empty = 0,
     _,
+    pub fn get(nts: NullTerminatedString, ir: Ir) [:0]const u8 {
+        const idx = std.mem.findScalar(u8, ir.string_bytes[@intFromEnum(nts)..], 0).?;
+        return ir.string_bytes[@intFromEnum(nts)..][0..idx :0];
+    }
 };
-
-pub fn nullTerminatedString(ir: Ir, idx: NullTerminatedString) [:0]const u8 {
-    const slice = ir.string_bytes[@intFromEnum(idx)..];
-    return slice[0..std.mem.findScalar(u8, slice, 0).? :0];
-}
