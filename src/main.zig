@@ -139,9 +139,10 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
             if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
                 return printUsage(io, usage_build, args[0]);
             } else if (mem.eql(u8, arg, "--name")) {
-                provided_name = args_iter.nextOrFatal();
-                if (!mem.eql(u8, provided_name.?, path.basename(provided_name.?)))
-                    fatal("invalid file name '{s}': cannot contain folder separators", .{provided_name.?});
+                const name = args_iter.nextOrFatal();
+                provided_name = name;
+                if (!mem.eql(u8, name, path.basename(name)))
+                    fatal("invalid file name '{s}': cannot contain folder separators", .{name});
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
@@ -184,8 +185,9 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
             } else if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
                 return printUsage(io, usage_init, args[0]);
             } else if (mem.eql(u8, arg, "--name")) {
-                proj_name = args_iter.nextOrFatal();
-                if (!mem.eql(u8, proj_name.?, path.basename(proj_name.?)))
+                const name = args_iter.nextOrFatal();
+                proj_name = name;
+                if (!mem.eql(u8, name, path.basename(name)))
                     fatal("invalid file name '{s}': cannot contain folder separators", .{proj_name.?});
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
