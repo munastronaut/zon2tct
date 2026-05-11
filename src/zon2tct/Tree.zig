@@ -80,8 +80,9 @@ pub const Node = struct {
     comptime {
         assert(@sizeOf(Id) == 1);
 
-        if (!std.debug.runtime_safety)
+        if (!std.debug.runtime_safety) {
             assert(@sizeOf(Data) == 8);
+        }
     }
 
     pub const Id = enum {
@@ -226,9 +227,9 @@ pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, tok_idx: TokenIndex) 
     for (tree.src[offset..], 0..) |c, i| {
         if (i + offset == tok_start) {
             loc.line_end = i + offset;
-            while (loc.line_end < tree.src.len and tree.src[loc.line_end] != '\n')
+            while (loc.line_end < tree.src.len and tree.src[loc.line_end] != '\n') {
                 loc.line_end += 1;
-
+            }
             return loc;
         }
         if (c == '\n') {
@@ -259,10 +260,14 @@ pub fn extraDataSlice(tree: Tree, range: Node.SubRange, comptime T: type) []cons
 }
 
 fn loadOptionalNodesIntoBuffer(comptime size: usize, buf: *[size]Node.Index, items: [size]Node.OptionalIndex) []Node.Index {
-    for (buf, items, 0..) |*node, opt_node, i|
+    for (buf, items, 0..) |*node, opt_node, i| {
         node.* = opt_node.unwrap() orelse return buf[0..i];
-
+    }
     return buf[0..];
+}
+
+pub fn rootDecls(tree: Tree) []const Node.Index {
+    return (&tree.nodes.items(.data)[@intFromEnum(Node.Index.root)].node)[0..1];
 }
 
 pub const Error = struct {
