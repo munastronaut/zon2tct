@@ -82,7 +82,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
     return .{
         .string_bytes = ig.string_bytes.toOwnedSlice(gpa),
-        .player = if (player_cand) |pc| .{ .explicit = pc } else .implicit,
+        .player = if (player_cand) |pk| .{ .pk = pk } else .default,
         .payload = payload,
     };
 }

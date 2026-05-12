@@ -16,10 +16,10 @@ error_notes: []CompileError.Note,
 
 pub const Player = union(enum) {
     /// A `u32` pk was provided.
-    explicit: u32,
+    pk: u32,
     /// A `u32` pk was not provided.
     /// In that case, the emitter should fall back to the variable `e.candidate_id`.
-    implicit,
+    default,
 };
 
 pub const Payload = struct {
