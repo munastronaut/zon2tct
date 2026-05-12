@@ -8,10 +8,19 @@ const Tree = @import("Tree.zig");
 
 extra: []u32,
 string_bytes: []u8,
+player: Player,
 payload: Payload,
 
 compile_errors: []CompileError,
 error_notes: []CompileError.Note,
+
+pub const Player = union(enum) {
+    /// A `u32` pk was provided.
+    explicit: u32,
+    /// A `u32` pk was not provided.
+    /// In that case, the emitter should fall back to the variable `e.candidate_id`.
+    implicit,
+};
 
 pub const Payload = struct {
     questions: std.ArrayList(Question),

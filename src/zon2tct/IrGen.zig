@@ -66,16 +66,23 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
     const root = try ig.parseRoot();
     if (root.definitions) |def_node| {
-        _ = def_node;
+        try ig.lowerDefinitions(def_node);
     }
 
-    var player_cand: ?u32 = null;
-    if (root.player_cand) |pc_node| {
-        player_cand = try ig.resolveCandidate(pc_node);
+    const player_cand = if (root.player_cand) |pc_node|
+        try ig.resolveCandidate(pc_node)
+    else
+        null;
+
+    if (root.questions) |qn_node| {
+        _ = qn_node;
+    } else {
+        // error - no questions
     }
 
     return .{
         .string_bytes = ig.string_bytes.toOwnedSlice(gpa),
+        .player = if (player_cand) |pc| .{ .explicit = pc } else .{.implicit},
         .payload = payload,
     };
 }
@@ -153,6 +160,11 @@ fn parseRoot(ig: *IrGen) !Root {
         } else if (mem.eql(u8, name, "player_candidate")) {
             if (result.player_cand) |_| {} // duplicate field error
             result.player_cand = val_node;
+        } else if (mem.eql(u8, name, "questions")) {
+            if (result.questions) |_| {} // duplicate field error
+            result.questions = val_node;
+        } else {
+            // error/warning about unknown field
         }
     }
 
@@ -170,9 +182,10 @@ fn getFieldName(tree: Tree, val_node: Tree.Node.Index) []const u8 {
     return tree.tokenSlice(getFieldIdentTok(tree, val_node));
 }
 
-const Definitions = struct {};
-
-fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {}
+fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {
+    _ = ig;
+    _ = def_node;
+}
 
 fn resolveCandidate(ig: *IrGen, pc_node: Tree.Node.Index) Allocator.Error!u32 {
     const id = ig.tree.nodeId(pc_node);
