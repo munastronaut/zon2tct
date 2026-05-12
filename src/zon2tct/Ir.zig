@@ -20,6 +20,13 @@ pub const Player = union(enum) {
     /// A `u32` pk was not provided.
     /// In that case, the emitter should fall back to the variable `e.candidate_id`.
     default,
+
+    pub fn format(p: Player, w: *std.Io.Writer) std.Io.Writer.Error!void {
+        return switch (p) {
+            .pk => |pk| w.printInt(pk, 10, .lower, .{}),
+            .default => w.writeAll("e.candidate_id"),
+        };
+    }
 };
 
 pub const Payload = struct {
