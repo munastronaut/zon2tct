@@ -201,20 +201,21 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
 
     switch (template) {
         .example => {
-            const str = @embedFile("templates/template.zon");
-            if (writeSimpleTemplateFile(io, filename, str)) |_| {
+            const tmplt = @embedFile("templates/template.zon");
+            if (writeSimpleTemplateFile(io, filename, tmplt)) |_| {
                 std.log.info("created {s}", .{filename});
             } else |err| switch (err) {
-                error.PathAlreadyExists => std.log.info("preserving already existing file: '{s}'", .{
-                    filename,
-                }),
+                error.PathAlreadyExists => std.log.info(
+                    "preserving already existing file: '{s}'",
+                    .{filename},
+                ),
                 else => std.log.err("unable to write '{s}': {s}\n", .{ filename, @errorName(err) }),
             }
             return cleanExit(io);
         },
         .minimal => {
-            const str = @embedFile("templates/template_minimal.zon");
-            writeSimpleTemplateFile(io, filename, str) catch |err| switch (err) {
+            const tmplt = @embedFile("templates/template_minimal.zon");
+            writeSimpleTemplateFile(io, filename, tmplt) catch |err| switch (err) {
                 error.PathAlreadyExists => fatal("refusing to overwrite '{s}'", .{filename}),
                 else => fatal("failed to create '{s}': {s}", .{ filename, @errorName(err) }),
             };
