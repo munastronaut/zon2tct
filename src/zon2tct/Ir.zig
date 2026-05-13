@@ -3,6 +3,7 @@ const Ir = @This();
 const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
+const Writer = std.Io.Writer;
 
 const Tree = @import("Tree.zig");
 
@@ -21,7 +22,7 @@ pub const Player = union(enum) {
     /// In that case, the emitter should fall back to the variable `e.candidate_id`.
     default,
 
-    pub fn format(p: Player, w: *std.Io.Writer) std.Io.Writer.Error!void {
+    pub fn format(p: Player, w: Writer) Writer.Error!void {
         return switch (p) {
             .pk => |pk| w.printInt(pk, 10, .lower, .{}),
             .default => w.writeAll("e.candidate_id"),
@@ -59,7 +60,7 @@ pub const Payload = struct {
     pub const Effect = struct {
         ans: u32,
         tgt: u32,
-        mult: f64,
+        mult: Number,
     };
 
     pub const GlobalEffect = struct {
@@ -77,8 +78,8 @@ pub const Payload = struct {
         pk: u32,
         ans: u32,
         issue: u32,
-        score: f64,
-        impt: f64,
+        score: Number,
+        impt: Number,
         tgt: union(enum) {
             cand: ?u32,
             state: u32,
@@ -109,6 +110,40 @@ pub const NullTerminatedString = enum(u32) {
     pub fn get(nts: NullTerminatedString, ir: Ir) [:0]const u8 {
         const idx = std.mem.findScalar(u8, ir.string_bytes[@intFromEnum(nts)..], 0).?;
         return ir.string_bytes[@intFromEnum(nts)..][0..idx :0];
+    }
+};
+
+pub const Number = struct {
+    value: f64,
+
+    pub fn format(num: Number, w: *Writer) Writer.Error!void {
+        const val = num.value;
+        if (std.math.isFinite(val)) return w.print("{d}", .{val});
+        if (std.math.isInf(val)) {
+            if (std.math.sign(val) == -1) try w.writeByte('-');
+            return w.writeAll("Infinity");
+        }
+        return w.writeAll("NaN");
+    }
+
+    pub fn fromFloat(num: f64) Number {
+        return .{ .value = num };
+    }
+
+    test format {
+        try testFormat("5", 5.0);
+        try testFormat("1.618033988749895", std.math.phi);
+        try testFormat("Infinity", std.math.inf(f64));
+        try testFormat("-Infinity", -std.math.inf(f64));
+        try testFormat("NaN", std.math.nan(f64));
+        try testFormat("NaN", -std.math.nan(f64));
+    }
+
+    fn testFormat(expected: []const u8, input: f64) !void {
+        var aw: Writer.Allocating = .init(std.testing.allocator);
+        defer aw.deinit();
+        try aw.writer.print("{f}", .{Number.fromFloat(input)});
+        return std.testing.expectEqualStrings(expected, aw.written());
     }
 };
 
