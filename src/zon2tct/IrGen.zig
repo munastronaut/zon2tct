@@ -172,8 +172,7 @@ fn parseRoot(ig: *IrGen) !Root {
 }
 
 fn getFieldIdentTok(tree: Tree, val_node: Tree.Node.Index) Tree.TokenIndex {
-    const main_tok = tree.nodeMainToken(val_node);
-    const ident_tok = main_tok - 2;
+    const ident_tok = tree.nodeMainToken(val_node) - 2;
     assert(tree.tokenId(ident_tok) == .identifier);
     return ident_tok;
 }

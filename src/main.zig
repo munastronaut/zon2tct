@@ -130,9 +130,7 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
     _ = gpa;
     _ = arena;
 
-    var args_iter: ArgsIterator = .{
-        .args = args[2..],
-    };
+    var args_iter: ArgsIterator = .{ .args = args[2..] };
 
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
@@ -174,9 +172,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
 
     var template: enum { example, minimal } = .example;
 
-    var args_iter: ArgsIterator = .{
-        .args = args[2..],
-    };
+    var args_iter: ArgsIterator = .{ .args = args[2..] };
 
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
