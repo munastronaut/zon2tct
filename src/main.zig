@@ -193,7 +193,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
         }
     }
 
-    const filename = try mem.concat(arena, u8, &.{ proj_name orelse "scenario", ".zon" });
+    const filename = if (proj_name) |name| try mem.concat(arena, u8, &.{ name, ".zon" }) else "scenario.zon";
 
     switch (template) {
         .example => {
