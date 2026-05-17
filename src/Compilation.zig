@@ -9,6 +9,23 @@ gpa: Allocator,
 arena: Allocator,
 io: Io,
 
+pub const CreateOptions = struct {
+    provided_name: ?[]const u8 = null,
+};
+
+pub fn create(gpa: Allocator, arena: Allocator, io: Io, options: CreateOptions) !*Compilation {
+    _ = options;
+    const comp = try arena.create(Compilation);
+
+    comp.* = .{
+        .gpa = gpa,
+        .arena = arena,
+        .io = io,
+    };
+
+    return comp;
+}
+
 pub const FileExt = enum {
     plaintext,
     unknown,

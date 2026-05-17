@@ -127,11 +127,8 @@ const usage_build =
 fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !void {
     var provided_name: ?[]const u8 = null;
     var src_file: ?[]const u8 = null;
-    _ = gpa;
-    _ = arena;
 
     var args_iter: ArgsIterator = .{ .args = args[2..] };
-
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
             if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
@@ -155,6 +152,9 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
     }
 
     if (src_file == null) fatal("expected positional argument or --name [name]", .{});
+
+    const comp = Compilation.create(gpa, arena, io, .{ .provided_name = provided_name }) catch unreachable;
+    _ = comp;
 }
 
 const usage_init =
@@ -169,11 +169,9 @@ const usage_init =
 
 fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
     var proj_name: ?[]const u8 = null;
-
     var template: enum { example, minimal } = .example;
 
     var args_iter: ArgsIterator = .{ .args = args[2..] };
-
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
             if (mem.eql(u8, arg, "-m") or mem.eql(u8, arg, "--minimal")) {
@@ -184,7 +182,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
                 const name = args_iter.nextOrFatal();
                 proj_name = name;
                 if (!mem.eql(u8, name, path.basename(name)))
-                    fatal("invalid file name '{s}': cannot contain folder separators", .{proj_name.?});
+                    fatal("invalid file name '{s}': cannot contain folder separators", .{name});
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
