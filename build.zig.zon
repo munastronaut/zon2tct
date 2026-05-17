@@ -2,7 +2,7 @@
     .name = .zon2tct,
     .version = "0.1.0",
     .fingerprint = 0x1ab6595f0ce256bf, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.16.0-dev.2682+02142a54d",
+    .minimum_zig_version = "0.16.0",
     .paths = .{
         "build.zig",
         "build.zig.zon",

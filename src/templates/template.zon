@@ -3,25 +3,25 @@
     // Currently, there are only three groups: candidates, states, and issues
     .definitions = .{
         .candidates = .{
-            // `.baby_gronk` will be resolved to the integer 116
-            .baby_gronk = 116,
-            .the_rizzler = 117,
+            // `.cand1` will be resolved to the integer 100
+            .cand1 = 100,
+            .cand2 = 101,
         },
         .states = .{
-            .alabama = 91,
-            .ohio = 97,
+            .state1 = 50,
+            .state2 = 51,
         },
         .issues = .{
-            .fanum_tax = 42,
+            .issue1 = 150,
         },
     },
-    // You can define a player candidate, and it must be a valid integer
-    .player_candidate = .baby_gronk,
+    // You can define a player candidate, and it must be either a valid integer or an alias
+    .player_candidate = .cand1,
     // This is where you define your questions.
     // Questions usually have the following fields:
     //
     // [name] - Optional
-    // text - The actual text of the question
+    // text - The text of the question
     // answers - An array of answers
     .questions = .{
         .{
@@ -29,8 +29,8 @@
             // later on in the JavaScript file, if you're implementing CYOA.
             // The tool will export a JavaScript object inside the output file which
             // contains the names for the questions or answers.
-            .name = "question_1",
-            .text = "Question 1. First question",
+            .name = "question1",
+            .text = "First question",
             // Answers usually have the following fields:
             //
             // [name] - Optional
@@ -41,24 +41,25 @@
             // [issue_effects] - An array of issue effects
             .answers = .{
                 .{
-                    .name = "answer_1_to_q1",
-                    .text = "Only in ohio",
+                    .name = "answer1_q1",
+                    .text = "First answer",
                     .feedback =
-                    \\ohio
-                    \\ohio
+                    \\multiline
+                    \\string
+                    \\feedback
                     ,
                     .global_effects = .{
                         .{
-                            .target = .baby_gronk,
+                            .target = .cand1,
                             .effect = 0.01,
                         },
                     },
                     .state_effects = .{
                         .{
-                            .state = .ohio,
+                            .state = .state2,
                             .effects = .{
                                 .{
-                                    .target = .the_rizzler,
+                                    .target = .cand2,
                                     .effect = -0.1,
                                 },
                             },
@@ -66,27 +67,27 @@
                     },
                     .issue_effects = .{
                         .{
-                            .issue = .fanum_tax,
+                            .issue = .issue1,
                             .score = 0.2,
                             .importance = 0.5,
                         },
                     },
                 },
                 .{
-                    .text = "Six seven",
-                    .feedback = "obama have dih",
+                    .text = "Second answer",
+                    .feedback = "Feedback",
                     .global_effects = .{
                         .{
-                            .target = .the_rizzler,
+                            .target = .cand2,
                             .effect = 0.9,
                         },
                     },
                     .state_effects = .{
                         .{
-                            .state = .alabama,
+                            .state = .state1,
                             .effects = .{
                                 .{
-                                    .target = .the_rizzler,
+                                    .target = .cand2,
                                     .effect = -0.5,
                                 },
                             },
