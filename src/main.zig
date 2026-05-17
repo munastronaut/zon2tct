@@ -155,6 +155,8 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
 
     const comp = Compilation.create(gpa, arena, io, .{ .provided_name = provided_name }) catch unreachable;
     _ = comp;
+
+    fatal("TODO emission", .{});
 }
 
 const usage_init =
