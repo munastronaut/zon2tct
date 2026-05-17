@@ -205,7 +205,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
                     "preserving already existing file: '{s}'",
                     .{filename},
                 ),
-                else => std.log.err("unable to write '{s}': {s}\n", .{ filename, @errorName(err) }),
+                else => std.log.err("unable to write '{s}': {t}\n", .{ filename, err }),
             }
             return cleanExit(io);
         },
@@ -213,7 +213,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
             const tmplt = @embedFile("templates/template_minimal.zon");
             writeSimpleTemplateFile(io, filename, tmplt) catch |err| switch (err) {
                 error.PathAlreadyExists => fatal("refusing to overwrite '{s}'", .{filename}),
-                else => fatal("failed to create '{s}': {s}", .{ filename, @errorName(err) }),
+                else => fatal("failed to create '{s}': {t}", .{ filename, err }),
             };
             std.log.info("created {s}", .{filename});
             return cleanExit(io);
