@@ -232,13 +232,6 @@ test parseRoot {
     }
 }
 
-fn getFieldIdentTok(tree: Tree, node: Tree.Node.Index) Tree.TokenIndex {
-    const ident_tok = tree.nodeMainToken(node) - 1;
-    std.debug.print("{t}\n", .{tree.tokenId(ident_tok)});
-    assert(tree.tokenId(ident_tok) == .identifier);
-    return ident_tok;
-}
-
 fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {
     _ = ig;
     _ = def_node;
