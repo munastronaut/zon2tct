@@ -138,7 +138,7 @@ fn appendIdentStr(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || er
 
     const slice = ig.string_bytes.items[start..];
     if (mem.findScalar(u8, slice, 0)) |_| {
-        try ig.addErrorTok(ident_tok, "identifier cannot null bytes", .{});
+        try ig.addErrorTok(ident_tok, "identifier cannot have null bytes", .{});
         return error.BadString;
     } else if (slice.len == 0) {
         try ig.addErrorTok(ident_tok, "identifier cannot be empty", .{});
