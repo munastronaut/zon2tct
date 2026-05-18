@@ -106,8 +106,11 @@ pub fn deinit(ir: *Ir, gpa: Allocator) void {
 pub const NullTerminatedString = enum(u32) {
     _,
     pub fn get(nts: NullTerminatedString, ir: Ir) [:0]const u8 {
-        const idx = std.mem.findScalar(u8, ir.string_bytes[@intFromEnum(nts)..], 0).?;
-        return ir.string_bytes[@intFromEnum(nts)..][0..idx :0];
+        return nts.getAny(ir.string_bytes);
+    }
+    pub fn getAny(nts: NullTerminatedString, string_bytes: []u8) [:0]const u8 {
+        const idx = std.mem.findScalar(u8, string_bytes[@intFromEnum(nts)..], 0).?;
+        return string_bytes[@intFromEnum(nts)..][0..idx :0];
     }
 };
 

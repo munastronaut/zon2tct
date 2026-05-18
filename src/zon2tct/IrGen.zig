@@ -197,10 +197,7 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
         const ident_tok = ig.tree.firstToken(val_node) - 2;
 
         if (ig.identAsString(ident_tok)) |name_str| {
-            const raw_str = raw_str: {
-                const idx = mem.findScalar(u8, ig.string_bytes.items[@intFromEnum(name_str)..], 0).?;
-                break :raw_str ig.string_bytes.items[@intFromEnum(name_str)..][0..idx :0];
-            };
+            const raw_str = name_str.getAny(ig.string_bytes.items);
             if (std.meta.stringToEnum(std.meta.FieldEnum(T), raw_str)) |field_enum| {
                 switch (field_enum) {
                     inline else => |tag| {
