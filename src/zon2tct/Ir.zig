@@ -7,7 +7,6 @@ const Writer = std.Io.Writer;
 
 const Tree = @import("Tree.zig");
 
-extra: []u32,
 string_bytes: []u8,
 player: Player,
 payload: Payload,
@@ -89,7 +88,6 @@ pub const Payload = struct {
 
 pub fn hasCompileErrors(ir: Ir) bool {
     if (ir.compile_errors.len > 0) {
-        assert(ir.extra.len == 0);
         return true;
     } else {
         assert(ir.error_notes.len == 0);

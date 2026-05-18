@@ -15,7 +15,6 @@ const Writer = std.Io.Writer;
 gpa: Allocator,
 tree: Tree,
 
-extra: std.ArrayList(u32),
 string_bytes: std.ArrayList(u8),
 string_table: std.HashMapUnmanaged(u32, void, StringIndexContext, hash_map.default_max_load_percentage),
 
@@ -32,7 +31,6 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     var ig: IrGen = .{
         .gpa = gpa,
         .tree = tree,
-        .extra = .empty,
         .string_bytes = .empty,
         .string_table = .empty,
         .candidates = .empty,
@@ -68,15 +66,38 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         // error - no questions
     }
 
-    return .{
-        .string_bytes = ig.string_bytes.toOwnedSlice(gpa),
-        .player = if (player_cand) |pk| .{ .pk = pk } else .default,
-        .payload = payload,
-    };
+    if (ig.compile_errors.items.len > 0) {
+        const string_bytes = try ig.string_bytes.toOwnedSlice(gpa);
+        errdefer gpa.free(string_bytes);
+        const compile_errors = try ig.compile_errors.toOwnedSlice(gpa);
+        errdefer gpa.free(compile_errors);
+        const error_notes = try ig.error_notes.toOwnedSlice(gpa);
+        errdefer gpa.free(error_notes);
+
+        return .{
+            .string_bytes = string_bytes,
+            .player = if (player_cand) |pk| .{ .pk = pk } else .default,
+            .payload = payload,
+            .compile_errors = compile_errors,
+            .error_notes = error_notes,
+        };
+    } else {
+        assert(ig.error_notes.items.len == 0);
+
+        const string_bytes = try ig.string_bytes.toOwnedSlice(gpa);
+        errdefer gpa.free(string_bytes);
+
+        return .{
+            .string_bytes = string_bytes,
+            .player = if (player_cand) |pk| .{ .pk = pk } else .default,
+            .payload = payload,
+            .compile_errors = &.{},
+            .error_notes = &.{},
+        };
+    }
 }
 
 fn deinit(ig: *IrGen) void {
-    ig.extra.deinit(ig.gpa);
     ig.string_bytes.deinit(ig.gpa);
     ig.string_table.deinit(ig.gpa);
     ig.candidates.deinit(ig.gpa);
@@ -217,7 +238,6 @@ test parseRoot {
     var ig: IrGen = .{
         .gpa = std.testing.allocator,
         .tree = tree,
-        .extra = .empty,
         .string_bytes = .empty,
         .string_table = .empty,
         .candidates = .empty,
@@ -336,7 +356,6 @@ fn testResolvePk(src: [:0]const u8, expected: u32) !void {
     var ig: IrGen = .{
         .gpa = gpa,
         .tree = tree,
-        .extra = .empty,
         .string_bytes = .empty,
         .string_table = .empty,
         .candidates = .empty,
@@ -363,7 +382,6 @@ fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
     var ig: IrGen = .{
         .gpa = gpa,
         .tree = tree,
-        .extra = .empty,
         .string_bytes = .empty,
         .string_table = .empty,
         .candidates = .empty,
