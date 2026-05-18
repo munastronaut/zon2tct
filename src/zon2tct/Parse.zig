@@ -6,7 +6,7 @@ const assert = std.debug.assert;
 
 const Tree = @import("Tree.zig");
 const Node = Tree.Node;
-const Token = Tree.Token;
+const Token = @import("Lexer.zig").Token;
 const TokenIndex = Tree.TokenIndex;
 
 pub const Error = error{ParseError} || Allocator.Error;
@@ -28,7 +28,7 @@ fn tokenStart(p: *const Parse, tok_idx: TokenIndex) Tree.ByteOffset {
     return p.tokens.items(.start)[tok_idx];
 }
 
-fn warn(p: *Parse, id: Tree.Error.Id) Error {
+fn warn(p: *Parse, id: Tree.Error.Id) Error!void {
     @branchHint(.cold);
     try p.warnMsg(.{ .id = id, .token = p.tok_i });
 }
@@ -158,6 +158,9 @@ fn parseValue(p: *Parse) Error!?Node.Index {
                             .r_paren => return p.failExpected(.r_brace),
                             else => try p.warn(.expected_comma_after_initializer),
                         }
+                        if (p.eatToken(.r_brace)) |_| break;
+                        const next = try p.expectFieldInit();
+                        try p.scratch.append(p.gpa, next);
                     }
                     const comma = p.tokenId(p.tok_i - 2) == .comma;
                     const inits = p.scratch.items[scratch_top..];
@@ -177,7 +180,7 @@ fn parseValue(p: *Parse) Error!?Node.Index {
                         return try p.addNode(.{
                             .id = if (comma) .struct_init_dot_comma else .struct_init_dot,
                             .main_tok = l_brace,
-                            .data = .{ .extra_range = p.listToSpan(inits) },
+                            .data = .{ .extra_range = try p.listToSpan(inits) },
                         });
                     }
                 }
@@ -213,12 +216,13 @@ fn parseValue(p: *Parse) Error!?Node.Index {
                     return try p.addNode(.{
                         .id = if (comma) .array_init_dot_comma else .array_init_dot,
                         .main_tok = l_brace,
-                        .data = .{ .extra_range = p.listToSpan(inits) },
+                        .data = .{ .extra_range = try p.listToSpan(inits) },
                     });
                 }
             },
             else => return null,
         },
+        else => return null,
     }
 }
 
@@ -248,7 +252,7 @@ fn parseFieldInit(p: *Parse) Error!?Node.Index {
     return null;
 }
 
-fn expectFieldInit(p: *Parse) Error!?Node.Index {
+fn expectFieldInit(p: *Parse) Error!Node.Index {
     if (p.eatTokens(&.{ .period, .identifier, .equal })) |_| {
         return try p.expectValue();
     }
