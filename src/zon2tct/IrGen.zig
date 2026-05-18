@@ -184,11 +184,14 @@ const Root = struct {
 };
 
 fn parseRoot(ig: *IrGen) Allocator.Error!Root {
-    var result: Root = .{};
-    const root_node = ig.tree.nodeData(.root).node;
+    return ig.parseStruct(Root, ig.tree.nodeData(.root).node);
+}
+
+fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Error!T {
+    var result: T = .{};
 
     var buf: [2]Tree.Node.Index = undefined;
-    const full = ig.tree.fullStructInit(&buf, root_node).?;
+    const full = ig.tree.fullStructInit(&buf, node).?;
 
     for (full.tree.fields) |val_node| {
         const ident_tok = ig.tree.firstToken(val_node) - 2;
@@ -198,7 +201,7 @@ fn parseRoot(ig: *IrGen) Allocator.Error!Root {
                 const idx = mem.findScalar(u8, ig.string_bytes.items[@intFromEnum(name_str)..], 0).?;
                 break :raw_str ig.string_bytes.items[@intFromEnum(name_str)..][0..idx :0];
             };
-            if (std.meta.stringToEnum(std.meta.FieldEnum(Root), raw_str)) |field_enum| {
+            if (std.meta.stringToEnum(std.meta.FieldEnum(T), raw_str)) |field_enum| {
                 switch (field_enum) {
                     inline else => |tag| {
                         const field_name = @tagName(tag);
