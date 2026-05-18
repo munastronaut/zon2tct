@@ -299,54 +299,36 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!u32 {
 }
 
 test resolvePk {
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = 100,
-            \\}
-        ;
-        try testResolvePk(test_str, 100);
-    }
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = 4_294_967_295,
-            \\}
-        ;
-        try testResolvePk(test_str, std.math.maxInt(u32));
-    }
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = 281_474_976_710_655,
-            \\}
-        ;
-        try testResolvePkExpectErr(test_str, "pk overflows u32 range");
-    }
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = -100,
-            \\}
-        ;
-        try testResolvePkExpectErr(test_str, "expected integer after '-'");
-    }
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = hello,
-            \\}
-        ;
-        try testResolvePkExpectErr(test_str, "expected enum literal or integer");
-    }
-    {
-        const test_str =
-            \\.{
-            \\    .player_candidate = .foo,
-            \\}
-        ;
-        try testResolvePkExpectErr(test_str, "could not resolve pk from alias 'foo'");
-    }
+    try testResolvePk(
+        \\.{
+        \\    .player_candidate = 100,
+        \\}
+    , 100);
+    try testResolvePk(
+        \\.{
+        \\    .player_candidate = 4_294_967_295,
+        \\}
+    , std.math.maxInt(u32));
+    try testResolvePkExpectErr(
+        \\.{
+        \\    .player_candidate = 281_474_976_710_655,
+        \\}
+    , "pk overflows u32 range");
+    try testResolvePkExpectErr(
+        \\.{
+        \\    .player_candidate = -100,
+        \\}
+    , "expected integer after '-'");
+    try testResolvePkExpectErr(
+        \\.{
+        \\    .player_candidate = hello,
+        \\}
+    , "expected enum literal or integer");
+    try testResolvePkExpectErr(
+        \\.{
+        \\    .player_candidate = .foo,
+        \\}
+    , "could not resolve pk from alias 'foo'");
 }
 
 fn testResolvePk(src: [:0]const u8, expected: u32) !void {
