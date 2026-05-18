@@ -58,7 +58,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     }
 
     const player_cand = if (root.player_candidate) |pc_node|
-        try ig.resolveCandidate(pc_node)
+        try ig.resolvePk(pc_node)
     else
         null;
 
@@ -204,14 +204,15 @@ fn parseRoot(ig: *IrGen) Allocator.Error!Root {
 }
 
 test parseRoot {
-    const src =
+    const test_str =
         \\.{
         \\    .definitions = .{ .candidates = .{} },
         \\    .player_candidate = 50,
         \\    .questions = .{},
         \\}
     ;
-    var tree = try Tree.parse(std.testing.allocator, src);
+
+    var tree: Tree = try .parse(std.testing.allocator, test_str);
     defer tree.deinit(std.testing.allocator);
     var ig: IrGen = .{
         .gpa = std.testing.allocator,
@@ -237,33 +238,153 @@ fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {
     _ = def_node;
 }
 
-fn resolveCandidate(ig: *IrGen, pc_node: Tree.Node.Index) Allocator.Error!u32 {
-    const id = ig.tree.nodeId(pc_node);
-    const slice = ig.tree.tokenSlice(ig.tree.nodeMainToken(pc_node));
+fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!u32 {
+    const tree = ig.tree;
+    const id = tree.nodeId(pk_node);
+    const tok = tree.nodeMainToken(pk_node);
+    const slice = tree.tokenSlice(tok);
 
     switch (id) {
-        .number_literal => return std.fmt.parseInt(u32, slice, 10) catch |e| {
-            // emit error here
-            switch (e) {
-                error.Overflow => {},
-                error.InvalidCharacter => {},
-            }
-            return 0;
+        .number_literal => if (std.fmt.parseInt(u32, slice, 10)) |pk| return pk else |err| switch (err) {
+            error.Overflow => try ig.addErrorTok(tok, "pk overflows u32 range", .{}),
+            error.InvalidCharacter => try ig.addErrorTok(tok, "invalid character in pk", .{}),
         },
         .enum_literal => {
-            const idx = try ig.internString(slice);
-            if (ig.candidates.getAdapted(
-                idx,
-                StringIndexContext{ .bytes = &ig.string_bytes },
-            )) |val| {
+            const idx = ig.identAsString(tok) catch |err| switch (err) {
+                error.BadString => undefined,
+                error.OutOfMemory => |e| return e,
+            };
+            if (ig.candidates.getAdapted(@intFromEnum(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
                 return val;
             } else {
-                // emit error here
-                return 0;
+                try ig.addErrorTok(tok, "could not resolve pk from alias '{s}'", .{slice});
             }
         },
-        else => {},
+        .negation => {
+            const child_node = tree.nodeData(pk_node).node;
+            switch (tree.nodeId(child_node)) {
+                .number_literal => try ig.addErrorTok(tok, "pk underflows u32 range", .{}),
+                .identifier => {
+                    const child_ident = tree.tokenSlice(tree.nodeMainToken(child_node));
+                    if (mem.eql(u8, child_ident, "inf"))
+                        try ig.addErrorTok(tok, "'inf' can be only represented by floats; cannot be used for negation with u32", .{});
+                },
+                else => {},
+            }
+            try ig.addErrorTok(tok, "expected integer after '-'", .{});
+        },
+        else => try ig.addErrorTok(tok, "expected enum literal or integer", .{}),
     }
+    return 0;
+}
+
+test resolvePk {
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = 100,
+            \\}
+        ;
+        try testResolvePk(test_str, 100);
+    }
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = 4_294_967_295,
+            \\}
+        ;
+        try testResolvePk(test_str, std.math.maxInt(u32));
+    }
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = 281_474_976_710_655,
+            \\}
+        ;
+        try testResolvePkExpectErr(test_str, "pk overflows u32 range");
+    }
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = -100,
+            \\}
+        ;
+        try testResolvePkExpectErr(test_str, "expected integer after '-'");
+    }
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = hello,
+            \\}
+        ;
+        try testResolvePkExpectErr(test_str, "expected enum literal or integer");
+    }
+    {
+        const test_str =
+            \\.{
+            \\    .player_candidate = .foo,
+            \\}
+        ;
+        try testResolvePkExpectErr(test_str, "could not resolve pk from alias 'foo'");
+    }
+}
+
+fn testResolvePk(src: [:0]const u8, expected: u32) !void {
+    const gpa = std.testing.allocator;
+    var tree: Tree = try .parse(gpa, src);
+    defer tree.deinit(gpa);
+    var ig: IrGen = .{
+        .gpa = gpa,
+        .tree = tree,
+        .extra = .empty,
+        .string_bytes = .empty,
+        .string_table = .empty,
+        .candidates = .empty,
+        .states = .empty,
+        .issues = .empty,
+        .compile_errors = .empty,
+        .error_notes = .empty,
+    };
+    defer ig.deinit();
+    const root = try ig.parseRoot();
+
+    const player_cand = if (root.player_candidate) |pc_node|
+        try ig.resolvePk(pc_node)
+    else
+        null;
+
+    return std.testing.expectEqual(expected, player_cand);
+}
+
+fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
+    const gpa = std.testing.allocator;
+    var tree: Tree = try .parse(gpa, src);
+    defer tree.deinit(gpa);
+    var ig: IrGen = .{
+        .gpa = gpa,
+        .tree = tree,
+        .extra = .empty,
+        .string_bytes = .empty,
+        .string_table = .empty,
+        .candidates = .empty,
+        .states = .empty,
+        .issues = .empty,
+        .compile_errors = .empty,
+        .error_notes = .empty,
+    };
+    defer ig.deinit();
+    const root = try ig.parseRoot();
+
+    const player_cand = if (root.player_candidate) |pc_node|
+        try ig.resolvePk(pc_node)
+    else
+        null;
+
+    try std.testing.expectEqual(0, player_cand);
+    var iter = mem.splitBackwardsScalar(u8, ig.string_bytes.items, 0);
+    _ = iter.next();
+    const raw_msg = iter.next().?;
+    try std.testing.expectEqualStrings(err_str, raw_msg);
 }
 
 fn errNoteNode(
@@ -296,6 +417,15 @@ fn errNoteTok(
     };
 }
 
+fn addErrorNode(
+    ig: *IrGen,
+    node: Tree.Node.Index,
+    comptime fmt: []const u8,
+    args: anytype,
+) Allocator.Error!void {
+    return ig.addErrorInner(.none, @intFromEnum(node), fmt, args, &.{});
+}
+
 fn addErrorTok(
     ig: *IrGen,
     tok: Tree.TokenIndex,
@@ -313,6 +443,16 @@ fn addErrorTokNotes(
     notes: []const Ir.CompileError.Note,
 ) Allocator.Error!void {
     return ig.addErrorInner(.fromToken(tok), 0, fmt, args, notes);
+}
+
+fn addErrorNodeNotes(
+    ig: *IrGen,
+    node: Tree.Node.Index,
+    comptime fmt: []const u8,
+    args: anytype,
+    notes: []const Ir.CompileError.Note,
+) Allocator.Error!void {
+    return ig.addErrorInner(.none, @intFromEnum(node), fmt, args, notes);
 }
 
 fn addErrorTokOff(

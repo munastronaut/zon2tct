@@ -99,6 +99,11 @@ pub fn parse(p: *Parse) !void {
 
 fn parseValue(p: *Parse) Error!?Node.Index {
     switch (p.tokenId(p.tok_i)) {
+        .minus => return try p.addNode(.{
+            .id = .negation,
+            .main_tok = p.nextToken(),
+            .data = .{ .node = try p.expectValue() },
+        }),
         .char_literal => return try p.addNode(.{
             .id = .char_literal,
             .main_tok = p.nextToken(),
@@ -228,21 +233,6 @@ fn parseValue(p: *Parse) Error!?Node.Index {
 
 fn expectValue(p: *Parse) Error!Node.Index {
     return try p.parseValue() orelse p.fail(.expected_expr);
-}
-
-fn parsePrefixExpr(p: *Parse) Error!?Node.Index {
-    const id: Node.Id = switch (p.tokenId(p.tok_i)) {
-        .minus => .negation,
-    };
-    return try p.addNode(.{
-        .id = id,
-        .main_tok = p.nextToken(),
-        .data = .{ .node = try p.expectPrefixExpr() },
-    });
-}
-
-fn expectPrefixExpr(p: *Parse) Error!Node.Index {
-    return try p.parsePrefixExpr() orelse return p.fail(.expected_prefix_expr);
 }
 
 fn parseFieldInit(p: *Parse) Error!?Node.Index {
