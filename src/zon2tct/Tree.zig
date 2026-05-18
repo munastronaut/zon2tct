@@ -139,7 +139,7 @@ pub fn nodeId(tree: *const Tree, node: Node.Index) Node.Id {
     return tree.nodes.items(.id)[@intFromEnum(node)];
 }
 
-pub fn nodeMainToken(tree: *const Tree, node: Node.Index) Node.Data {
+pub fn nodeMainToken(tree: *const Tree, node: Node.Index) TokenIndex {
     return tree.nodes.items(.main_tok)[@intFromEnum(node)];
 }
 
@@ -193,6 +193,8 @@ pub fn parseTokens(
     defer p.nodes.deinit(gpa);
     defer p.extra_data.deinit(gpa);
     defer p.scratch.deinit(gpa);
+
+    try p.nodes.ensureTotalCapacity(gpa, (tokens.len + 2) / 2);
 
     try p.parse();
 
@@ -268,6 +270,31 @@ fn loadOptionalNodesIntoBuffer(comptime size: usize, buf: *[size]Node.Index, ite
 
 pub fn rootDecls(tree: Tree) []const Node.Index {
     return (&tree.nodes.items(.data)[@intFromEnum(Node.Index.root)].node)[0..1];
+}
+
+pub fn firstToken(tree: Tree, node: Node.Index) TokenIndex {
+    while (true) switch (tree.nodeId(node)) {
+        .root => return 0,
+
+        .negation,
+        .identifier,
+        .char_literal,
+        .number_literal,
+        .string_literal,
+        .multiline_string_literal,
+        => return tree.nodeMainToken(node),
+
+        .array_init_dot,
+        .array_init_dot_comma,
+        .array_init_dot_two,
+        .array_init_dot_two_comma,
+        .struct_init_dot,
+        .struct_init_dot_comma,
+        .struct_init_dot_two,
+        .struct_init_dot_two_comma,
+        .enum_literal,
+        => return tree.nodeMainToken(node) - 1,
+    };
 }
 
 pub const Error = struct {

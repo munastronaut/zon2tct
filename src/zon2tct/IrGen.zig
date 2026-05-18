@@ -10,6 +10,7 @@ const Allocator = mem.Allocator;
 const hash_map = std.hash_map;
 const StringIndexAdapter = hash_map.StringIndexAdapter;
 const StringIndexContext = hash_map.StringIndexContext;
+const Writer = std.Io.Writer;
 
 gpa: Allocator,
 tree: Tree,
@@ -26,19 +27,6 @@ compile_errors: std.ArrayList(Ir.CompileError),
 error_notes: std.ArrayList(Ir.CompileError.Note),
 
 const SymbolTable = std.HashMapUnmanaged(u32, u32, StringIndexContext, hash_map.default_max_load_percentage);
-
-pub const testing: IrGen = .{
-    .gpa = std.testing.allocator,
-    .tree = undefined,
-    .extra = .empty,
-    .string_bytes = .empty,
-    .string_table = .empty,
-    .candidates = .empty,
-    .states = .empty,
-    .issues = .empty,
-    .compile_errors = .empty,
-    .error_notes = .empty,
-};
 
 pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     var ig: IrGen = .{
@@ -69,7 +57,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         try ig.lowerDefinitions(def_node);
     }
 
-    const player_cand = if (root.player_cand) |pc_node|
+    const player_cand = if (root.player_candidate) |pc_node|
         try ig.resolveCandidate(pc_node)
     else
         null;
@@ -98,87 +86,157 @@ fn deinit(ig: *IrGen) void {
     ig.error_notes.deinit(ig.gpa);
 }
 
-fn internString(ig: *IrGen, slice: []const u8) Allocator.Error!u32 {
+fn appendIdentStr(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || error{BadString})!u32 {
+    const gpa = ig.gpa;
+    const tree = ig.tree;
+    assert(tree.tokenId(ident_tok) == .identifier);
+    const ident_name = tree.tokenSlice(ident_tok);
+    if (!mem.startsWith(u8, ident_name, "@")) {
+        const start = ig.string_bytes.items.len;
+        try ig.string_bytes.appendSlice(gpa, ident_name);
+        return @intCast(start);
+    }
+    const offset = 1;
+    const start: u32 = @intCast(ig.string_bytes.items.len);
+    const raw_str = ig.tree.tokenSlice(ident_tok)[offset..];
+    try ig.string_bytes.ensureUnusedCapacity(gpa, raw_str.len);
+    const result = result: {
+        var aw: Writer.Allocating = .fromArrayList(gpa, &ig.string_bytes);
+        defer ig.string_bytes = aw.toArrayList();
+        break :result std.zig.string_literal.parseWrite(&aw.writer, raw_str) catch |err| switch (err) {
+            error.WriteFailed => return error.OutOfMemory,
+        };
+    };
+    switch (result) {
+        .success => {},
+        .failure => |err| {
+            try ig.lowerStrLitError(err, ident_tok, raw_str, offset);
+            return error.BadString;
+        },
+    }
+
+    const slice = ig.string_bytes.items[start..];
+    if (mem.findScalar(u8, slice, 0)) |_| {
+        try ig.addErrorTok(ident_tok, "identifier cannot null bytes", .{});
+        return error.BadString;
+    } else if (slice.len == 0) {
+        try ig.addErrorTok(ident_tok, "identifier cannot be empty", .{});
+        return error.BadString;
+    }
+    return start;
+}
+
+fn identAsString(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || error{BadString})!Ir.NullTerminatedString {
     const gpa = ig.gpa;
     const string_bytes = &ig.string_bytes;
-
+    const str_idx = try ig.appendIdentStr(ident_tok);
+    const key: []const u8 = string_bytes.items[str_idx..];
     const gop = try ig.string_table.getOrPutContextAdapted(
         gpa,
-        slice,
+        key,
         StringIndexAdapter{ .bytes = string_bytes },
         StringIndexContext{ .bytes = string_bytes },
     );
-    if (gop.found_existing) return gop.key_ptr.*;
-
-    const str_idx: u32 = @intCast(string_bytes.items.len);
-    try string_bytes.appendSlice(gpa, slice);
-    try string_bytes.append(gpa, 0);
-
+    if (gop.found_existing) {
+        string_bytes.shrinkRetainingCapacity(str_idx);
+        return @enumFromInt(gop.key_ptr.*);
+    }
     gop.key_ptr.* = str_idx;
-    return str_idx;
+    try string_bytes.append(gpa, 0);
+    return @enumFromInt(str_idx);
 }
 
-test "string interning - deduplication" {
-    var ig: IrGen = .testing;
-    defer ig.deinit();
-    const idx = try ig.internString("foo");
-    try std.testing.expect(idx == try ig.internString("foo"));
-}
-
-test "string interning - indexing" {
-    var ig: IrGen = .testing;
-    defer ig.deinit();
-    _ = try ig.internString("foo");
-    _ = try ig.internString("bar");
-    const idx = try ig.internString("baz");
-    try std.testing.expect(idx == 8);
+fn lowerStrLitError(
+    ig: *IrGen,
+    err: std.zig.string_literal.Error,
+    tok: Tree.TokenIndex,
+    raw_str: []const u8,
+    offset: u32,
+) Allocator.Error!void {
+    return ig.addErrorTokOff(tok, @intCast(offset + err.offset()), "{f}", .{err.fmt(raw_str)});
 }
 
 const Root = struct {
     definitions: ?Tree.Node.Index = null,
-    player_cand: ?Tree.Node.Index = null,
+    player_candidate: ?Tree.Node.Index = null,
     questions: ?Tree.Node.Index = null,
 };
 
-fn parseRoot(ig: *IrGen) !Root {
+fn parseRoot(ig: *IrGen) Allocator.Error!Root {
     var result: Root = .{};
     const root_node = ig.tree.nodeData(.root).node;
 
     var buf: [2]Tree.Node.Index = undefined;
-    const full = ig.tree.fullStructInit(&buf, root_node) orelse {
-        // emit an error here
-        return result;
-    };
+    const full = ig.tree.fullStructInit(&buf, root_node).?;
 
     for (full.tree.fields) |val_node| {
-        const ident_tok = getFieldIdentTok(ig.tree, val_node);
-        const name = ig.tree.tokenSlice(ident_tok);
+        const ident_tok = ig.tree.firstToken(val_node) - 2;
 
-        if (mem.eql(u8, name, "definitions")) {
-            if (result.definitions) |_| {} // duplicate field error
-            result.definitions = val_node;
-        } else if (mem.eql(u8, name, "player_candidate")) {
-            if (result.player_cand) |_| {} // duplicate field error
-            result.player_cand = val_node;
-        } else if (mem.eql(u8, name, "questions")) {
-            if (result.questions) |_| {} // duplicate field error
-            result.questions = val_node;
-        } else {
-            // error/warning about unknown field
+        if (ig.identAsString(ident_tok)) |name_str| {
+            const raw_str = raw_str: {
+                const idx = mem.findScalar(u8, ig.string_bytes.items[@intFromEnum(name_str)..], 0).?;
+                break :raw_str ig.string_bytes.items[@intFromEnum(name_str)..][0..idx :0];
+            };
+            if (std.meta.stringToEnum(std.meta.FieldEnum(Root), raw_str)) |field_enum| {
+                switch (field_enum) {
+                    inline else => |tag| {
+                        const field_name = @tagName(tag);
+                        if (@field(result, field_name)) |prev_node| {
+                            const prev_tok = ig.tree.firstToken(prev_node) - 2;
+                            try ig.addErrorTokNotes(ident_tok, "duplicate struct field name", .{}, &.{
+                                try ig.errNoteTok(prev_tok, "duplicate name here", .{}),
+                            });
+                        } else {
+                            @field(result, field_name) = val_node;
+                        }
+                    },
+                }
+            } else {
+                try ig.addErrorTok(ident_tok, "unknown field '{s}'", .{raw_str});
+            }
+        } else |err| switch (err) {
+            error.BadString => {},
+            error.OutOfMemory => |e| return e,
         }
     }
 
     return result;
 }
 
-fn getFieldIdentTok(tree: Tree, val_node: Tree.Node.Index) Tree.TokenIndex {
-    const ident_tok = tree.nodeMainToken(val_node) - 2;
-    assert(tree.tokenId(ident_tok) == .identifier);
-    return ident_tok;
+test parseRoot {
+    const src =
+        \\.{
+        \\    .definitions = .{ .candidates = .{} },
+        \\    .player_candidate = 50,
+        \\    .questions = .{},
+        \\}
+    ;
+    var tree = try Tree.parse(std.testing.allocator, src);
+    defer tree.deinit(std.testing.allocator);
+    var ig: IrGen = .{
+        .gpa = std.testing.allocator,
+        .tree = tree,
+        .extra = .empty,
+        .string_bytes = .empty,
+        .string_table = .empty,
+        .candidates = .empty,
+        .states = .empty,
+        .issues = .empty,
+        .compile_errors = .empty,
+        .error_notes = .empty,
+    };
+    defer ig.deinit();
+    const root = try ig.parseRoot();
+    inline for (std.meta.fields(Root)) |field| {
+        try std.testing.expect(@field(root, field.name) != null);
+    }
 }
 
-fn getFieldName(tree: Tree, val_node: Tree.Node.Index) []const u8 {
-    return tree.tokenSlice(getFieldIdentTok(tree, val_node));
+fn getFieldIdentTok(tree: Tree, node: Tree.Node.Index) Tree.TokenIndex {
+    const ident_tok = tree.nodeMainToken(node) - 1;
+    std.debug.print("{t}\n", .{tree.tokenId(ident_tok)});
+    assert(tree.tokenId(ident_tok) == .identifier);
+    return ident_tok;
 }
 
 fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {
@@ -245,6 +303,15 @@ fn errNoteTok(
     };
 }
 
+fn addErrorTok(
+    ig: *IrGen,
+    tok: Tree.TokenIndex,
+    comptime fmt: []const u8,
+    args: anytype,
+) Allocator.Error!void {
+    return ig.addErrorInner(.fromToken(tok), 0, fmt, args, &.{});
+}
+
 fn addErrorTokNotes(
     ig: *IrGen,
     tok: Tree.TokenIndex,
@@ -253,6 +320,16 @@ fn addErrorTokNotes(
     notes: []const Ir.CompileError.Note,
 ) Allocator.Error!void {
     return ig.addErrorInner(.fromToken(tok), 0, fmt, args, notes);
+}
+
+fn addErrorTokOff(
+    ig: *IrGen,
+    tok: Tree.TokenIndex,
+    offset: u32,
+    comptime fmt: []const u8,
+    args: anytype,
+) Allocator.Error!void {
+    return ig.addErrorInner(.fromToken(tok), offset, fmt, args, &.{});
 }
 
 fn addErrorInner(
