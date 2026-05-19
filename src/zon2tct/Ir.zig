@@ -86,10 +86,7 @@ pub const Payload = struct {
         issue: u32,
         score: Number,
         impt: Number,
-        tgt: union(enum) {
-            cand: u32,
-            state: u32,
-        },
+        tgt: TgtUnion,
 
         pub const TgtUnion = union(enum) {
             cand: u32,
