@@ -89,7 +89,7 @@ pub const Payload = struct {
         tgt: TgtUnion,
 
         pub const TgtUnion = union(enum) {
-            cand: u32,
+            cand: ?u32,
             state: u32,
         };
     };

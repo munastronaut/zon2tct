@@ -111,7 +111,7 @@ test generate {
     const cwd: std.Io.Dir = .cwd();
     const file = try cwd.readFileAllocOptions(
         io,
-        "src/templates/template.zon",
+        "examples/1960.zon",
         gpa,
         .limited(std.math.maxInt(u32)),
         .of(u8),
@@ -490,12 +490,28 @@ fn resolveNumber(ig: *IrGen, node: Tree.Node.Index) Allocator.Error!?Ir.Number {
     return null;
 }
 
+fn resolveArray(ig: *IrGen, buf: *[2]Tree.Node.Index, node: Tree.Node.Index) ![]const Tree.Node.Index {
+    const tree = ig.tree;
+    if (tree.fullArrayInit(buf, node)) |full| {
+        return full.tree.elements;
+    } else if (tree.fullStructInit(buf, node)) |_| {
+        // In Zig, `.{}` is ambiguous. This can represent either an empty array or an empty struct.
+        // In parsing, this is given a node id of `struct_init_dot_two`.
+        switch (tree.nodeId(node)) {
+            // Fall through to the `return`
+            .struct_init_dot_two => {},
+            else => try ig.addErrorNode(node, "expected an array", .{}),
+        }
+    }
+
+    return &.{};
+}
+
 fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !void {
     const gpa = ig.gpa;
-    const tree = ig.tree;
 
     var qn_buf: [2]Tree.Node.Index = undefined;
-    const qn_full = tree.fullArrayInit(&qn_buf, qn_node).?;
+    const qn_full = try ig.resolveArray(&qn_buf, qn_node);
 
     var qn_pk: u32 = 1000;
     var ans_pk: u32 = 2750;
@@ -503,7 +519,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
     var seff_pk: u32 = 4500;
     var ieff_pk: u32 = 10000;
 
-    for (qn_full.tree.elements) |qn_elem_node| {
+    for (qn_full) |qn_elem_node| {
         const qn = try ig.parseStruct(Question, qn_elem_node);
         defer qn_pk += 1;
 
@@ -539,9 +555,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
         if (qn.answers) |ans_node| {
             var ans_buf: [2]Tree.Node.Index = undefined;
-            const ans_full = tree.fullArrayInit(&ans_buf, ans_node).?;
+            const ans_full = try ig.resolveArray(&ans_buf, ans_node);
 
-            for (ans_full.tree.elements) |ans_elem_node| {
+            for (ans_full) |ans_elem_node| {
                 const ans = try ig.parseStruct(Answer, ans_elem_node);
                 defer ans_pk += 1;
 
@@ -592,9 +608,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                 if (ans.global_effects) |geff_node| {
                     var geff_buf: [2]Tree.Node.Index = undefined;
-                    const geff_full = tree.fullArrayInit(&geff_buf, geff_node).?;
+                    const geff_full = try ig.resolveArray(&geff_buf, geff_node);
 
-                    for (geff_full.tree.elements) |geff_elem_node| {
+                    for (geff_full) |geff_elem_node| {
                         const eff = try ig.parseStruct(Effect, geff_elem_node);
                         defer geff_pk += 1;
 
@@ -629,9 +645,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                 if (ans.state_effects) |seff_node| {
                     var seff_buf: [2]Tree.Node.Index = undefined;
-                    const seff_full = tree.fullArrayInit(&seff_buf, seff_node).?;
+                    const seff_full = try ig.resolveArray(&seff_buf, seff_node);
 
-                    for (seff_full.tree.elements) |seff_elem_node| {
+                    for (seff_full) |seff_elem_node| {
                         const seff = try ig.parseStruct(StateEffect, seff_elem_node);
                         defer seff_pk += 1;
 
@@ -646,9 +662,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                         if (seff.effects) |effs_node| {
                             var effs_buf: [2]Tree.Node.Index = undefined;
-                            const effs_full = tree.fullArrayInit(&effs_buf, effs_node).?;
+                            const effs_full = try ig.resolveArray(&effs_buf, effs_node);
 
-                            for (effs_full.tree.elements) |effs_elem_node| {
+                            for (effs_full) |effs_elem_node| {
                                 const eff = try ig.parseStruct(Effect, effs_elem_node);
                                 defer seff_pk += 1;
 
@@ -688,9 +704,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                 if (ans.issue_effects) |ieff_node| {
                     var ieff_buf: [2]Tree.Node.Index = undefined;
-                    const ieff_full = tree.fullArrayInit(&ieff_buf, ieff_node).?;
+                    const ieff_full = try ig.resolveArray(&ieff_buf, ieff_node);
 
-                    for (ieff_full.tree.elements) |ieff_elem_node| {
+                    for (ieff_full) |ieff_elem_node| {
                         const ieff = try ig.parseStruct(IssueEffect, ieff_elem_node);
                         defer ieff_pk += 1;
 
@@ -708,10 +724,8 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                                 if (tgt.state) |state| {
                                     if (try ig.resolvePk(state, &ig.states)) |pk| break :t .{ .state = pk };
                                 }
-                            } else {
-                                try ig.addErrorNode(ieff_elem_node, "issue effect requires 'target' field", .{});
                             }
-                            break :t .{ .cand = 0 };
+                            break :t .{ .cand = ig.player };
                         };
 
                         const iss_pk: u32 = blk: {
