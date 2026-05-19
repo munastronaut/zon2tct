@@ -67,6 +67,7 @@
                     },
                     .issue_effects = .{
                         .{
+                            .target = .{ .candidate = .cand1 },
                             .issue = .issue1,
                             .score = 0.2,
                             .importance = 0.5,

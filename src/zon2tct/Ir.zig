@@ -30,6 +30,7 @@ pub const Player = union(enum) {
 };
 
 pub const Payload = struct {
+    symbols: std.ArrayList(Symbol),
     questions: std.ArrayList(Question),
     answers: std.ArrayList(Answer),
     global_effects: std.ArrayList(GlobalEffect),
@@ -37,12 +38,18 @@ pub const Payload = struct {
     issue_effects: std.ArrayList(IssueEffect),
 
     pub fn deinit(p: *Payload, gpa: Allocator) void {
+        p.symbols.deinit(gpa);
         p.questions.deinit(gpa);
         p.answers.deinit(gpa);
         p.global_effects.deinit(gpa);
         p.state_effects.deinit(gpa);
         p.issue_effects.deinit(gpa);
     }
+
+    pub const Symbol = struct {
+        pk: u32,
+        name: NullTerminatedString,
+    };
 
     pub const Question = struct {
         pk: u32,
@@ -80,9 +87,14 @@ pub const Payload = struct {
         score: Number,
         impt: Number,
         tgt: union(enum) {
-            cand: ?u32,
+            cand: u32,
             state: u32,
         },
+
+        pub const TgtUnion = union(enum) {
+            cand: u32,
+            state: u32,
+        };
     };
 };
 
