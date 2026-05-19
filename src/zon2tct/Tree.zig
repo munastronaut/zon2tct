@@ -210,6 +210,10 @@ pub fn parseTokens(
     };
 }
 
+pub fn errorOffset(tree: Tree, parse_error: Error) u32 {
+    return if (parse_error.token_is_prev) @intCast(tree.tokenSlice(parse_error.token).len) else 0;
+}
+
 pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, tok_idx: TokenIndex) Location {
     var loc: Location = .{
         .line = 1,
@@ -248,6 +252,10 @@ pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, tok_idx: TokenIndex) 
 pub fn tokenSlice(tree: Tree, tok_idx: TokenIndex) []const u8 {
     const tok_id = tree.tokenId(tok_idx);
 
+    if (tok_id.lexeme()) |lexeme| {
+        return lexeme;
+    }
+
     var lexer: Lexer = .{
         .src = tree.src,
         .idx = tree.tokenStart(tok_idx),
@@ -272,8 +280,41 @@ pub fn rootDecls(tree: Tree) []const Node.Index {
     return (&tree.nodes.items(.data)[@intFromEnum(Node.Index.root)].node)[0..1];
 }
 
+pub fn renderError(tree: Tree, parse_error: Error, w: *std.Io.Writer) std.Io.Writer.Error!void {
+    switch (parse_error.id) {
+        .expected_expr => {
+            return w.print("expected expression, found '{s}'", .{
+                tree.tokenId(parse_error.token + @intFromBool(parse_error.token_is_prev)).symbol(),
+            });
+        },
+        .expected_prefix_expr => {
+            return w.print("expected prefix expression, found '{s}'", .{
+                tree.tokenId(parse_error.token + @intFromBool(parse_error.token_is_prev)).symbol(),
+            });
+        },
+        .expected_comma_after_initializer => {
+            return w.writeAll("expected ',' after initializer");
+        },
+        .expected_initializer => {
+            return w.writeAll("expected field initializer");
+        },
+        .expected_token => {
+            const found_id = tree.tokenId(parse_error.token + @intFromBool(parse_error.token_is_prev));
+            const expected_symbol = parse_error.extra.expected_id.symbol();
+            switch (found_id) {
+                .invalid => return w.print("expected '{s}', found invalid bytes", .{
+                    expected_symbol,
+                }),
+                else => return w.print("expected '{s}', found '{s}'", .{
+                    expected_symbol, found_id.symbol(),
+                }),
+            }
+        },
+    }
+}
+
 pub fn firstToken(tree: Tree, node: Node.Index) TokenIndex {
-    while (true) switch (tree.nodeId(node)) {
+    switch (tree.nodeId(node)) {
         .root => return 0,
 
         .negation,
@@ -294,7 +335,7 @@ pub fn firstToken(tree: Tree, node: Node.Index) TokenIndex {
         .struct_init_dot_two_comma,
         .enum_literal,
         => return tree.nodeMainToken(node) - 1,
-    };
+    }
 }
 
 pub const Error = struct {

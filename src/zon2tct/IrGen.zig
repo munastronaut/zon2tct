@@ -18,6 +18,7 @@ tree: Tree,
 string_bytes: std.ArrayList(u8),
 string_table: std.HashMapUnmanaged(u32, void, StringIndexContext, hash_map.default_max_load_percentage),
 
+player: ?u32,
 candidates: SymbolTable,
 states: SymbolTable,
 issues: SymbolTable,
@@ -33,6 +34,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         .tree = tree,
         .string_bytes = .empty,
         .string_table = .empty,
+        .player = null,
         .candidates = .empty,
         .states = .empty,
         .issues = .empty,
@@ -50,20 +52,22 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     };
     errdefer payload.deinit(gpa);
 
-    const root = try ig.parseRoot();
-    if (root.definitions) |def_node| {
-        try ig.lowerDefinitions(def_node);
-    }
+    if (tree.errors.len == 0) {
+        const root = try ig.parseRoot();
 
-    const player_cand = if (root.player_candidate) |pc_node|
-        try ig.resolvePk(pc_node)
-    else
-        null;
+        if (root.definitions) |def_node| {
+            try ig.lowerDefinitions(def_node);
+        }
 
-    if (root.questions) |qn_node| {
-        _ = qn_node;
+        ig.player = if (root.player_candidate) |pc_node| try ig.resolvePk(pc_node);
+
+        if (root.questions) |qn_node| {
+            _ = qn_node;
+        } else {
+            // error - no questions
+        }
     } else {
-        // error - no questions
+        try ig.lowerAstErrors();
     }
 
     if (ig.compile_errors.items.len > 0) {
@@ -76,7 +80,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
         return .{
             .string_bytes = string_bytes,
-            .player = if (player_cand) |pk| .{ .pk = pk } else .default,
+            .player = if (ig.player) |pk| .{ .pk = pk } else .default,
             .payload = payload,
             .compile_errors = compile_errors,
             .error_notes = error_notes,
@@ -89,7 +93,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
         return .{
             .string_bytes = string_bytes,
-            .player = if (player_cand) |pk| .{ .pk = pk } else .default,
+            .player = if (ig.player) |pk| .{ .pk = pk } else .default,
             .payload = payload,
             .compile_errors = &.{},
             .error_notes = &.{},
@@ -225,21 +229,21 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
 }
 
 test parseRoot {
-    const test_str =
+    const gpa = std.testing.allocator;
+    var tree: Tree = try .parse(gpa,
         \\.{
         \\    .definitions = .{ .candidates = .{} },
         \\    .player_candidate = 50,
         \\    .questions = .{},
         \\}
-    ;
-
-    var tree: Tree = try .parse(std.testing.allocator, test_str);
-    defer tree.deinit(std.testing.allocator);
+    );
+    defer tree.deinit(gpa);
     var ig: IrGen = .{
-        .gpa = std.testing.allocator,
+        .gpa = gpa,
         .tree = tree,
         .string_bytes = .empty,
         .string_table = .empty,
+        .player = null,
         .candidates = .empty,
         .states = .empty,
         .issues = .empty,
@@ -253,12 +257,74 @@ test parseRoot {
     }
 }
 
-fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) !void {
-    _ = ig;
-    _ = def_node;
+fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void {
+    const tree = ig.tree;
+    const definitions = try ig.parseStruct(Definitions, def_node);
+
+    inline for (std.meta.fields(Definitions)) |field| {
+        if (@field(definitions, field.name)) |node| {
+            var buf: [2]Tree.Node.Index = undefined;
+            const full = tree.fullStructInit(&buf, node).?;
+
+            const table: *SymbolTable = &@field(ig, field.name);
+
+            for (full.tree.fields) |val_node| {
+                const ident_tok = tree.firstToken(val_node) - 2;
+
+                if (tree.tokenId(ident_tok) != .identifier) {
+                    try ig.addErrorNode(val_node, "expected key-value pair for definition", .{});
+                    continue;
+                }
+
+                if (ig.identAsString(ident_tok)) |name_str| {
+                    const value = try ig.resolvePk(val_node) orelse continue;
+                    const gop = try table.getOrPutContext(ig.gpa, @intFromEnum(name_str), StringIndexContext{ .bytes = &ig.string_bytes });
+                    if (gop.found_existing) {
+                        const raw_str = name_str.getAny(ig.string_bytes.items);
+                        try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
+                    } else {
+                        gop.value_ptr.* = value;
+                    }
+                } else |err| switch (err) {
+                    error.BadString => {},
+                    error.OutOfMemory => |e| return e,
+                }
+            }
+        }
+    }
 }
 
-fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!u32 {
+test lowerDefinitions {
+    const gpa = std.testing.allocator;
+    var tree: Tree = try .parse(gpa,
+        \\.{
+        \\    .definitions = .{ .candidates = .{ .cand1 = 500 } },
+        \\    .player_candidate = .cand1,
+        \\    .questions = .{},
+        \\}
+    );
+    defer tree.deinit(gpa);
+    var ig: IrGen = .{
+        .gpa = gpa,
+        .tree = tree,
+        .string_bytes = .empty,
+        .string_table = .empty,
+        .player = null,
+        .candidates = .empty,
+        .states = .empty,
+        .issues = .empty,
+        .compile_errors = .empty,
+        .error_notes = .empty,
+    };
+    defer ig.deinit();
+    const root = try ig.parseRoot();
+    const def_node = root.definitions.?;
+    try ig.lowerDefinitions(def_node);
+    var iter = ig.candidates.valueIterator();
+    try std.testing.expectEqual(500, iter.next().?.*);
+}
+
+fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!?u32 {
     const tree = ig.tree;
     const id = tree.nodeId(pk_node);
     const tok = tree.nodeMainToken(pk_node);
@@ -295,7 +361,7 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!u32 {
         },
         else => try ig.addErrorTok(tok, "expected enum literal or integer", .{}),
     }
-    return 0;
+    return null;
 }
 
 test resolvePk {
@@ -340,6 +406,7 @@ fn testResolvePk(src: [:0]const u8, expected: u32) !void {
         .tree = tree,
         .string_bytes = .empty,
         .string_table = .empty,
+        .player = null,
         .candidates = .empty,
         .states = .empty,
         .issues = .empty,
@@ -366,6 +433,7 @@ fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
         .tree = tree,
         .string_bytes = .empty,
         .string_table = .empty,
+        .player = null,
         .candidates = .empty,
         .states = .empty,
         .issues = .empty,
@@ -380,12 +448,18 @@ fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
     else
         null;
 
-    try std.testing.expectEqual(0, player_cand);
+    try std.testing.expectEqual(null, player_cand);
     var iter = mem.splitBackwardsScalar(u8, ig.string_bytes.items, 0);
     _ = iter.next();
     const raw_msg = iter.next().?;
     try std.testing.expectEqualStrings(err_str, raw_msg);
 }
+
+const Definitions = struct {
+    candidates: ?Tree.Node.Index = null,
+    states: ?Tree.Node.Index = null,
+    issues: ?Tree.Node.Index = null,
+};
 
 fn errNoteNode(
     ig: *IrGen,
@@ -465,6 +539,17 @@ fn addErrorTokOff(
     return ig.addErrorInner(.fromToken(tok), offset, fmt, args, &.{});
 }
 
+fn addErrorTokNotesOff(
+    ig: *IrGen,
+    tok: Tree.TokenIndex,
+    offset: u32,
+    comptime fmt: []const u8,
+    args: anytype,
+    notes: []const Ir.CompileError.Note,
+) Allocator.Error!void {
+    return ig.addErrorInner(.fromToken(tok), offset, fmt, args, notes);
+}
+
 fn addErrorInner(
     ig: *IrGen,
     token: Tree.OptionalTokenIndex,
@@ -488,4 +573,43 @@ fn addErrorInner(
         .first_note = first_note,
         .note_count = @intCast(notes.len),
     });
+}
+
+fn lowerAstErrors(ig: *IrGen) Allocator.Error!void {
+    const gpa = ig.gpa;
+    const tree = ig.tree;
+    assert(tree.errors.len > 0);
+
+    var msg: Writer.Allocating = .init(gpa);
+    defer msg.deinit();
+    const msg_bw = &msg.writer;
+
+    var notes: std.ArrayList(Ir.CompileError.Note) = .empty;
+    defer notes.deinit(gpa);
+
+    var cur_err = tree.errors[0];
+    for (tree.errors[1..]) |err| {
+        if (err.is_note) {
+            tree.renderError(err, msg_bw) catch |er| switch (er) {
+                error.WriteFailed => return error.OutOfMemory,
+            };
+            try notes.append(gpa, try ig.errNoteTok(err.token, "{s}", .{msg.written()}));
+        } else {
+            tree.renderError(cur_err, msg_bw) catch |er| switch (er) {
+                error.WriteFailed => return error.OutOfMemory,
+            };
+            const extra_offset = tree.errorOffset(cur_err);
+            try ig.addErrorTokNotesOff(cur_err.token, extra_offset, "{s}", .{msg.written()}, notes.items);
+            notes.clearRetainingCapacity();
+            cur_err = err;
+
+            return;
+        }
+        msg.clearRetainingCapacity();
+    }
+
+    const extra_offset = tree.errorOffset(cur_err, msg_bw) catch |err| switch (err) {
+        error.WriteFailed => return error.OutOfMemory,
+    };
+    try ig.addErrorTokNotesOff(cur_err.token, extra_offset, "{s}", .{msg.written()}, notes.items);
 }
