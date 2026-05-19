@@ -59,7 +59,9 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
             try ig.lowerDefinitions(def_node);
         }
 
-        ig.player = if (root.player_candidate) |pc_node| try ig.resolvePk(pc_node);
+        if (root.player_candidate) |pc_node| {
+            ig.player = try ig.resolvePk(pc_node);
+        }
 
         if (root.questions) |qn_node| {
             _ = qn_node;
@@ -251,7 +253,11 @@ test parseRoot {
         .error_notes = .empty,
     };
     defer ig.deinit();
+
+    assert(tree.errors.len == 0);
+
     const root = try ig.parseRoot();
+
     inline for (std.meta.fields(Root)) |field| {
         try std.testing.expect(@field(root, field.name) != null);
     }
@@ -317,11 +323,31 @@ test lowerDefinitions {
         .error_notes = .empty,
     };
     defer ig.deinit();
-    const root = try ig.parseRoot();
-    const def_node = root.definitions.?;
-    try ig.lowerDefinitions(def_node);
+
+    if (tree.errors.len == 0) {
+        const root = try ig.parseRoot();
+
+        if (root.definitions) |def_node| {
+            try ig.lowerDefinitions(def_node);
+        }
+
+        if (root.player_candidate) |pc_node| {
+            ig.player = try ig.resolvePk(pc_node);
+        }
+
+        if (root.questions) |qn_node| {
+            _ = qn_node;
+        } else {
+            // error - no questions
+        }
+    } else {
+        try ig.lowerAstErrors();
+    }
+
     var iter = ig.candidates.valueIterator();
-    try std.testing.expectEqual(500, iter.next().?.*);
+    const value = iter.next();
+    assert(value != null);
+    try std.testing.expectEqual(500, value.?.*);
 }
 
 fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index) Allocator.Error!?u32 {
@@ -399,8 +425,10 @@ test resolvePk {
 
 fn testResolvePk(src: [:0]const u8, expected: u32) !void {
     const gpa = std.testing.allocator;
+
     var tree: Tree = try .parse(gpa, src);
     defer tree.deinit(gpa);
+
     var ig: IrGen = .{
         .gpa = gpa,
         .tree = tree,
@@ -414,20 +442,36 @@ fn testResolvePk(src: [:0]const u8, expected: u32) !void {
         .error_notes = .empty,
     };
     defer ig.deinit();
-    const root = try ig.parseRoot();
 
-    const player_cand = if (root.player_candidate) |pc_node|
-        try ig.resolvePk(pc_node)
-    else
-        null;
+    if (tree.errors.len == 0) {
+        const root = try ig.parseRoot();
 
-    return std.testing.expectEqual(expected, player_cand);
+        if (root.definitions) |def_node| {
+            try ig.lowerDefinitions(def_node);
+        }
+
+        if (root.player_candidate) |pc_node| {
+            ig.player = try ig.resolvePk(pc_node);
+        }
+
+        if (root.questions) |qn_node| {
+            _ = qn_node;
+        } else {
+            // error - no questions
+        }
+    } else {
+        try ig.lowerAstErrors();
+    }
+
+    return std.testing.expectEqual(expected, ig.player);
 }
 
 fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
     const gpa = std.testing.allocator;
+
     var tree: Tree = try .parse(gpa, src);
     defer tree.deinit(gpa);
+
     var ig: IrGen = .{
         .gpa = gpa,
         .tree = tree,
@@ -441,14 +485,28 @@ fn testResolvePkExpectErr(src: [:0]const u8, err_str: []const u8) !void {
         .error_notes = .empty,
     };
     defer ig.deinit();
-    const root = try ig.parseRoot();
 
-    const player_cand = if (root.player_candidate) |pc_node|
-        try ig.resolvePk(pc_node)
-    else
-        null;
+    if (tree.errors.len == 0) {
+        const root = try ig.parseRoot();
 
-    try std.testing.expectEqual(null, player_cand);
+        if (root.definitions) |def_node| {
+            try ig.lowerDefinitions(def_node);
+        }
+
+        if (root.player_candidate) |pc_node| {
+            ig.player = try ig.resolvePk(pc_node);
+        }
+
+        if (root.questions) |qn_node| {
+            _ = qn_node;
+        } else {
+            // error - no questions
+        }
+    } else {
+        try ig.lowerAstErrors();
+    }
+
+    try std.testing.expectEqual(null, ig.player);
     var iter = mem.splitBackwardsScalar(u8, ig.string_bytes.items, 0);
     _ = iter.next();
     const raw_msg = iter.next().?;
@@ -608,7 +666,8 @@ fn lowerAstErrors(ig: *IrGen) Allocator.Error!void {
         msg.clearRetainingCapacity();
     }
 
-    const extra_offset = tree.errorOffset(cur_err, msg_bw) catch |err| switch (err) {
+    const extra_offset = tree.errorOffset(cur_err);
+    tree.renderError(cur_err, msg_bw) catch |err| switch (err) {
         error.WriteFailed => return error.OutOfMemory,
     };
     try ig.addErrorTokNotesOff(cur_err.token, extra_offset, "{s}", .{msg.written()}, notes.items);
