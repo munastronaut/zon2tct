@@ -100,6 +100,7 @@ const State = enum {
     doc_comment_start,
     doc_comment,
     backslash,
+    saw_at_sign,
     invalid,
 };
 
@@ -138,6 +139,7 @@ pub fn next(l: *Lexer) Token {
                 result.id = .identifier;
                 continue :state .identifier;
             },
+            '@' => continue :state .saw_at_sign,
             '=' => {
                 result.id = .equal;
                 l.idx += 1;
@@ -188,6 +190,18 @@ pub fn next(l: *Lexer) Token {
                     continue :state .invalid;
                 },
                 '\n' => result.id = .invalid,
+                else => continue :state .invalid,
+            }
+        },
+
+        .saw_at_sign => {
+            l.idx += 1;
+            switch (l.src[l.idx]) {
+                0, '\n' => result.id = .invalid,
+                '"' => {
+                    result.id = .identifier;
+                    continue :state .string_literal;
+                },
                 else => continue :state .invalid,
             }
         },
