@@ -1,7 +1,9 @@
 const std = @import("std");
 const Io = std.Io;
 
+pub const ErrorBundle = @import("ErrorBundle.zig");
 pub const Ir = @import("Tree.zig");
+pub const IrGen = @import("IrGen.zig");
 pub const Lexer = @import("Lexer.zig");
 pub const Parse = @import("Parse.zig");
 pub const Token = Lexer.Token;
@@ -31,7 +33,11 @@ pub const EnvVar = enum {
 };
 
 test {
+    _ = ErrorBundle;
+    _ = Ir;
+    _ = IrGen;
     _ = Lexer;
     _ = Parse;
+    _ = Token;
     _ = Tree;
 }
