@@ -10,6 +10,8 @@ const cleanExit = process.cleanExit;
 
 const Compilation = @import("Compilation.zig");
 const zon2tct = @import("zon2tct");
+const Color = zon2tct.Color;
+const EnvVar = zon2tct.EnvVar;
 
 pub const std_options: std.Options = .{
     .logFn = log,
@@ -78,11 +80,17 @@ pub fn main(init: std.process.Init) !void {
     return mainArgs(gpa, arena, io, args);
 }
 
-fn mainArgs(gpa: Allocator, arena: Allocator, io: Io, args: []const [:0]const u8) !void {
+fn mainArgs(
+    gpa: Allocator,
+    arena: Allocator,
+    io: Io,
+    args: []const [:0]const u8,
+    environ_map: *process.Environ.Map,
+) !void {
     const cmd = args[1];
 
     if (mem.eql(u8, cmd, "build")) {
-        return buildOutput(gpa, arena, io, args);
+        return buildOutput(gpa, arena, io, args, environ_map);
     } else if (mem.eql(u8, cmd, "init")) {
         return cmdInit(arena, io, args);
     } else if (mem.eql(u8, cmd, "help") or mem.eql(u8, cmd, "-h") or mem.eql(u8, cmd, "--help")) {
@@ -94,9 +102,9 @@ fn mainArgs(gpa: Allocator, arena: Allocator, io: Io, args: []const [:0]const u8
 
 fn printUsage(io: Io, comptime str: []const u8, exe_name: []const u8) !void {
     var buf: [256]u8 = undefined;
-    var wrt = Io.File.stdout().writer(io, &buf);
-    try wrt.interface.print(str, .{exe_name});
-    try wrt.interface.flush();
+    var w = Io.File.stdout().writer(io, &buf);
+    try w.interface.print(str, .{exe_name});
+    try w.interface.flush();
     return cleanExit(io);
 }
 
@@ -124,9 +132,23 @@ const usage_build =
     \\
 ;
 
-fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u8) !void {
+fn buildOutput(
+    gpa: Allocator,
+    arena: Allocator,
+    io: Io,
+    args: []const []const u8,
+    environ_map: *process.Environ.Map,
+) !void {
     var provided_name: ?[]const u8 = null;
     var src_file: ?[]const u8 = null;
+
+    const color: zon2tct.Color = if (EnvVar.NO_COLOR.isSet(environ_map))
+        .off
+    else if (EnvVar.CLICOLOR_FORCE.isSet(environ_map))
+        .on
+    else
+        .auto;
+    _ = color;
 
     var args_iter: ArgsIterator = .{ .args = args[2..] };
     while (args_iter.next()) |arg| {
@@ -153,7 +175,9 @@ fn buildOutput(gpa: Allocator, arena: Allocator, io: Io, args: []const []const u
 
     if (src_file == null) fatal("expected positional argument or --name [name]", .{});
 
-    const comp = Compilation.create(gpa, arena, io, .{ .provided_name = provided_name }) catch unreachable;
+    const comp = Compilation.create(gpa, arena, io, .{ .provided_name = provided_name }) catch |err| {
+        fatal("failed to create compilation: {t}", .{err});
+    };
     _ = comp;
 
     fatal("TODO emission", .{});

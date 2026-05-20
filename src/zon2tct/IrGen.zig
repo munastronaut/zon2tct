@@ -108,6 +108,39 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     }
 }
 
+test generate {
+    const io = std.testing.io;
+    const gpa = std.testing.allocator;
+
+    const path = "examples/1960.zon";
+    const src = try std.Io.Dir.readFileAllocOptions(
+        .cwd(),
+        io,
+        path,
+        gpa,
+        .limited(std.math.maxInt(u32)),
+        .of(u8),
+        0,
+    );
+    defer gpa.free(src);
+
+    var tree: Tree = try .parse(gpa, src);
+    defer tree.deinit(gpa);
+
+    var ir = try generate(gpa, tree);
+    defer ir.deinit(gpa);
+
+    if (ir.hasCompileErrors()) {
+        var wip: zon2tct.ErrorBundle.Wip = undefined;
+        try wip.init(gpa);
+        defer wip.deinit();
+        try wip.addIrErrorMessages(ir, tree, src, path);
+        var eb = try wip.toOwnedBundle();
+        defer eb.deinit(gpa);
+        eb.renderToStderr(io, .auto) catch {};
+    }
+}
+
 fn deinit(ig: *IrGen) void {
     ig.string_bytes.deinit(ig.gpa);
     ig.string_table.deinit(ig.gpa);
@@ -386,7 +419,15 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
             if (table.getAdapted(@intFromEnum(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
                 return val;
             } else {
-                try ig.addErrorTok(tok, "could not resolve integer pk from alias '{s}'", .{slice});
+                const suggestion = ig.suggest(slice, table);
+                if (suggestion != .empty) {
+                    const str = suggestion.getAny(ig.string_bytes.items);
+                    try ig.addErrorTokNotes(tok, "undefined alias '{s}'", .{slice}, &.{
+                        try ig.errNoteTok(tok, "did you mean '{s}'?", .{str}),
+                    });
+                } else {
+                    try ig.addErrorTok(tok, "undefined alias '{s}'", .{slice});
+                }
             }
         } else |err| switch (err) {
             error.BadString => {},
@@ -690,8 +731,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                             if (ieff.target) |target| {
                                 const tgt = try ig.parseStruct(IssueTarget, target);
                                 if (tgt.candidate != null and tgt.state != null) {
-                                    try ig.addErrorNodeNotes(tgt.candidate.?, "target cannot have both 'candidate' and 'state' fields active", .{}, &.{
-                                        try ig.errNoteNode(tgt.state.?, "'state' field active here", .{}),
+                                    const cand_ident = ig.tree.firstToken(tgt.candidate.?) - 2;
+                                    const state_ident = ig.tree.firstToken(tgt.state.?) - 2;
+                                    try ig.addErrorTokNotes(cand_ident, "target cannot have both 'candidate' and 'state' fields active", .{}, &.{
+                                        try ig.errNoteTok(state_ident, "'state' field active here", .{}),
                                     });
                                 }
                                 if (tgt.candidate) |cand| {
@@ -952,4 +995,55 @@ fn lowerAstErrors(ig: *IrGen) Allocator.Error!void {
         error.WriteFailed => return error.OutOfMemory,
     };
     try ig.addErrorTokNotesOff(cur_err.token, extra_offset, "{s}", .{msg.written()}, notes.items);
+}
+
+fn suggest(ig: *IrGen, str: []const u8, table: *const SymbolTable) Ir.NullTerminatedString {
+    var sf = std.heap.stackFallback(256, ig.gpa);
+    const gpa = sf.get();
+
+    var nearest_match: Ir.NullTerminatedString = .empty;
+    var min_dist: u32 = 4;
+
+    var it = table.keyIterator();
+    while (it.next()) |key_ptr| {
+        const key = key_ptr.*;
+        const raw: Ir.NullTerminatedString = @enumFromInt(key);
+        const dist = lev(gpa, str, raw.getAny(ig.string_bytes.items)) catch continue;
+        if (dist < min_dist) {
+            min_dist = dist;
+            nearest_match = @enumFromInt(key);
+        }
+    }
+
+    return nearest_match;
+}
+
+fn lev(gpa: Allocator, a: []const u8, b: []const u8) !u32 {
+    if (a.len < b.len) return lev(gpa, b, a);
+    if (b.len == 0) return @intCast(a.len);
+
+    const row = try gpa.alloc(u32, b.len + 1);
+    defer gpa.free(row);
+
+    for (row, 0..) |*val, i| {
+        val.* = @intCast(i);
+    }
+
+    for (a) |c| {
+        var prev = row[0];
+        row[0] += 1;
+
+        for (1..row.len) |j| {
+            const old = row[j];
+            const cost: u32 = if (c == b[j - 1]) 0 else 1;
+
+            row[j] = @min(
+                row[j] + 1,
+                row[j - 1] + 1,
+                prev + cost,
+            );
+            prev = old;
+        }
+    }
+    return row[b.len];
 }

@@ -1,7 +1,8 @@
 const Tree = @This();
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
+const mem = std.mem;
+const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 
 const zon2tct = @import("zon2tct.zig");
@@ -128,6 +129,12 @@ pub const Location = struct {
     line_end: u32,
 };
 
+pub const Span = struct {
+    start: u32,
+    end: u32,
+    main: u32,
+};
+
 pub fn tokenId(tree: *const Tree, tok_idx: TokenIndex) Token.Id {
     return tree.tokens.items(.id)[tok_idx];
 }
@@ -217,14 +224,14 @@ pub fn errorOffset(tree: Tree, parse_error: Error) u32 {
 
 pub fn tokenLocation(tree: Tree, start_offset: ByteOffset, tok_idx: TokenIndex) Location {
     var loc: Location = .{
-        .line = 1,
-        .column = 1,
+        .line = 0,
+        .column = 0,
         .line_start = start_offset,
         .line_end = tree.src.len,
     };
     const tok_start = tree.tokenStart(tok_idx);
 
-    while (std.mem.findScalarPos(u8, tree.src, loc.line_start, '\n')) |i| {
+    while (mem.findScalarPos(u8, tree.src, loc.line_start, '\n')) |i| {
         if (i >= tok_start) break;
         loc.line += 1;
         loc.line_start = i + 1;
@@ -339,6 +346,73 @@ pub fn firstToken(tree: Tree, node: Node.Index) TokenIndex {
     }
 }
 
+pub fn lastToken(tree: Tree, node: Node.Index) TokenIndex {
+    var n = node;
+    var end_offset: u32 = 0;
+    while (true) switch (tree.nodeId(n)) {
+        .root => return @intCast(tree.tokens.len - 1),
+
+        .negation => n = tree.nodeData(n).node,
+
+        .multiline_string_literal => return tree.nodeData(n).token_and_token[1] + end_offset,
+
+        .char_literal,
+        .identifier,
+        .number_literal,
+        .string_literal,
+        .enum_literal,
+        => return tree.nodeMainToken(n) + end_offset,
+
+        .array_init_dot, .struct_init_dot => {
+            const range = tree.nodeData(n).extra_range;
+            assert(range.start != range.end);
+            end_offset += 1;
+            n = @enumFromInt(tree.extra_data[@intFromEnum(range.end) - 1]);
+        },
+
+        .array_init_dot_comma, .struct_init_dot_comma => {
+            const range = tree.nodeData(n).extra_range;
+            assert(range.start != range.end);
+            end_offset += 2;
+            n = @enumFromInt(tree.extra_data[@intFromEnum(range.end) - 1]);
+        },
+
+        .array_init_dot_two, .struct_init_dot_two => {
+            const opt_lhs, const opt_rhs = tree.nodeData(n).opt_node_and_opt_node;
+            if (opt_rhs.unwrap()) |rhs| {
+                end_offset += 1;
+                n = rhs;
+            } else if (opt_lhs.unwrap()) |lhs| {
+                end_offset += 1;
+                n = lhs;
+            } else {
+                switch (tree.nodeId(n)) {
+                    .array_init_dot_two, .struct_init_dot_two => end_offset += 1,
+                    else => unreachable,
+                }
+            }
+            return tree.nodeMainToken(n) + end_offset;
+        },
+
+        .array_init_dot_two_comma, .struct_init_dot_two_comma => {
+            const opt_lhs, const opt_rhs = tree.nodeData(n).opt_node_and_opt_node;
+            end_offset += 2;
+            if (opt_rhs.unwrap()) |rhs| {
+                n = rhs;
+            } else if (opt_lhs.unwrap()) |lhs| {
+                n = lhs;
+            } else {
+                unreachable;
+            }
+        },
+    };
+}
+
+pub fn tokensOnSameLine(tree: Tree, tok1: TokenIndex, tok2: TokenIndex) bool {
+    const src = tree.src[tree.tokenStart(tok1)..tree.tokenStart(tok2)];
+    return mem.findScalar(u8, src, '\n') == null;
+}
+
 pub const Error = struct {
     id: Id,
     is_note: bool = false,
@@ -438,3 +512,42 @@ pub const full = struct {
         };
     };
 };
+
+pub fn nodeToSpan(tree: *const Tree, node: Node.Index) Span {
+    return tree.tokensToSpan(
+        tree.firstToken(node),
+        tree.lastToken(node),
+        tree.nodeMainToken(node),
+    );
+}
+
+pub fn tokenToSpan(tree: *const Tree, tok: TokenIndex) Span {
+    return tree.tokensToSpan(tok, tok, tok);
+}
+
+pub fn tokensToSpan(tree: *const Tree, start: TokenIndex, end: TokenIndex, main: TokenIndex) Span {
+    var start_tok = start;
+    var end_tok = end;
+
+    if (tree.tokensOnSameLine(start, end)) {
+        // do nothing
+    } else if (tree.tokensOnSameLine(start, main)) {
+        end_tok = main;
+    } else if (tree.tokensOnSameLine(main, end)) {
+        start_tok = main;
+    } else {
+        start_tok = main;
+        end_tok = main;
+    }
+    const start_off = tree.tokenStart(start_tok);
+    const end_off = tree.tokenStart(end_tok) + @as(u32, @intCast(tree.tokenSlice(end_tok).len));
+    return .{
+        .start = start_off,
+        .end = end_off,
+        .main = tree.tokenStart(main),
+    };
+}
+
+test {
+    _ = Parse;
+}
