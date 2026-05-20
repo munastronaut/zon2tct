@@ -4,9 +4,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const Tree = @import("Tree.zig");
+const zon2tct = @import("zon2tct.zig");
+const Tree = zon2tct.Tree;
 const Node = Tree.Node;
-const Token = @import("Lexer.zig").Token;
+const Token = zon2tct.Token;
 const TokenIndex = Tree.TokenIndex;
 
 pub const Error = error{ParseError} || Allocator.Error;

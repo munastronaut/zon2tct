@@ -5,7 +5,8 @@ const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 
-const Tree = @import("Tree.zig");
+const zon2tct = @import("zon2tct.zig");
+const Tree = zon2tct.Tree;
 
 string_bytes: []u8,
 player: Player,
@@ -113,6 +114,7 @@ pub fn deinit(ir: *Ir, gpa: Allocator) void {
 }
 
 pub const NullTerminatedString = enum(u32) {
+    empty = 0,
     _,
     pub fn get(nts: NullTerminatedString, ir: Ir) [:0]const u8 {
         return nts.getAny(ir.string_bytes);

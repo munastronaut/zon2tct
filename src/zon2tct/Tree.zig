@@ -4,9 +4,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const Lexer = @import("Lexer.zig");
-const Token = Lexer.Token;
-const Parse = @import("Parse.zig");
+const zon2tct = @import("zon2tct.zig");
+const Lexer = zon2tct.Lexer;
+const Token = zon2tct.Token;
+const Parse = zon2tct.Parse;
 
 src: [:0]const u8,
 

@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const zon2tct_mod = b.addModule("zon2tct", .{
-        .root_source_file = b.path("src/zon2tct.zig"),
+        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
     });
 
     const exe = b.addExecutable(.{

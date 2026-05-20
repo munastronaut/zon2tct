@@ -1,7 +1,8 @@
 const IrGen = @This();
 
-const Ir = @import("Ir.zig");
-const Tree = @import("Tree.zig");
+const zon2tct = @import("zon2tct.zig");
+const Ir = zon2tct.Ir;
+const Tree = zon2tct.Tree;
 
 const std = @import("std");
 const assert = std.debug.assert;
@@ -42,6 +43,8 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         .error_notes = .empty,
     };
     defer ig.deinit();
+
+    try ig.string_bytes.append(gpa, 0);
 
     var payload: Ir.Payload = .{
         .symbols = .empty,
@@ -105,33 +108,6 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     }
 }
 
-test generate {
-    const io = std.testing.io;
-    const gpa = std.testing.allocator;
-    const cwd: std.Io.Dir = .cwd();
-    const file = try cwd.readFileAllocOptions(
-        io,
-        "examples/1960.zon",
-        gpa,
-        .limited(std.math.maxInt(u32)),
-        .of(u8),
-        0,
-    );
-    defer gpa.free(file);
-
-    var tree: Tree = try .parse(gpa, file);
-    defer tree.deinit(gpa);
-
-    var ir = try generate(gpa, tree);
-    defer ir.deinit(gpa);
-
-    inline for (std.meta.fields(Ir.Payload)) |field| {
-        for (@field(ir.payload, field.name).items) |items| {
-            std.debug.print("{any}\n", .{items});
-        }
-    }
-}
-
 fn deinit(ig: *IrGen) void {
     ig.string_bytes.deinit(ig.gpa);
     ig.string_table.deinit(ig.gpa);
@@ -154,7 +130,7 @@ fn appendIdentStr(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || er
     }
     const offset = 1;
     const start: u32 = @intCast(ig.string_bytes.items.len);
-    const raw_str = ig.tree.tokenSlice(ident_tok)[offset..];
+    const raw_str = tree.tokenSlice(ident_tok)[offset..];
     try ig.string_bytes.ensureUnusedCapacity(gpa, raw_str.len);
     const result = r: {
         var aw: Writer.Allocating = .fromArrayList(gpa, &ig.string_bytes);
@@ -545,7 +521,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
             } else {
                 try ig.addErrorNode(qn_elem_node, "question requires 'text' field", .{});
             }
-            break :blk @enumFromInt(0);
+            break :blk .empty;
         };
 
         try payload.questions.append(gpa, .{
@@ -583,7 +559,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                     } else {
                         try ig.addErrorNode(ans_elem_node, "answer requires 'text' field", .{});
                     }
-                    break :blk @enumFromInt(0);
+                    break :blk .empty;
                 };
 
                 const ans_fdbk: Ir.NullTerminatedString = blk: {
@@ -596,7 +572,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                             error.OutOfMemory => |e| return e,
                         }
                     }
-                    break :blk @enumFromInt(0);
+                    break :blk .empty;
                 };
 
                 try payload.answers.append(gpa, .{
