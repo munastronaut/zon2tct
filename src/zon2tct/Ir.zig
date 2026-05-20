@@ -34,7 +34,8 @@ pub const Payload = struct {
     symbols: std.ArrayList(Symbol),
     questions: std.ArrayList(Question),
     answers: std.ArrayList(Answer),
-    global_effects: std.ArrayList(GlobalEffect),
+    feedbacks: std.ArrayList(Feedback),
+    global_effects: std.ArrayList(Effect),
     state_effects: std.ArrayList(StateEffect),
     issue_effects: std.ArrayList(IssueEffect),
 
@@ -42,26 +43,30 @@ pub const Payload = struct {
         p.symbols.deinit(gpa);
         p.questions.deinit(gpa);
         p.answers.deinit(gpa);
+        p.feedbacks.deinit(gpa);
         p.global_effects.deinit(gpa);
         p.state_effects.deinit(gpa);
         p.issue_effects.deinit(gpa);
     }
 
     pub const Symbol = struct {
-        pk: u32,
+        kind: enum { question, answer },
+        idx: u32,
         name: NullTerminatedString,
     };
 
     pub const Question = struct {
-        pk: u32,
         text: NullTerminatedString,
     };
 
     pub const Answer = struct {
-        pk: u32,
         qn: u32,
         text: NullTerminatedString,
-        fdbk: NullTerminatedString,
+    };
+
+    pub const Feedback = struct {
+        ans: u32,
+        text: NullTerminatedString,
     };
 
     pub const Effect = struct {
@@ -70,19 +75,12 @@ pub const Payload = struct {
         mult: Number,
     };
 
-    pub const GlobalEffect = struct {
-        pk: u32,
-        eff: Effect,
-    };
-
     pub const StateEffect = struct {
-        pk: u32,
         state: u32,
         eff: Effect,
     };
 
     pub const IssueEffect = struct {
-        pk: u32,
         ans: u32,
         issue: u32,
         score: Number,

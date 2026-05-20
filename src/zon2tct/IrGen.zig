@@ -50,6 +50,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         .symbols = .empty,
         .questions = .empty,
         .answers = .empty,
+        .feedbacks = .empty,
         .global_effects = .empty,
         .state_effects = .empty,
         .issue_effects = .empty,
@@ -138,6 +139,13 @@ test generate {
         var eb = try wip.toOwnedBundle();
         defer eb.deinit(gpa);
         eb.renderToStderr(io, .auto) catch {};
+    }
+
+    const fields = @typeInfo(Ir.Payload).@"struct".fields;
+    inline for (fields) |field| {
+        for (@field(ir.payload, field.name).items) |item| {
+            std.debug.print("{any}\n", .{item});
+        }
     }
 }
 
@@ -331,6 +339,7 @@ const Root = struct {
 };
 
 fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Error!T {
+    assert(@typeInfo(T) == .@"struct");
     var result: T = .{};
 
     var buf: [2]Tree.Node.Index = undefined;
@@ -530,19 +539,17 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
     var qn_buf: [2]Tree.Node.Index = undefined;
     const qn_full = try ig.resolveArray(&qn_buf, qn_node);
 
-    var qn_pk: u32 = 1000;
-    var ans_pk: u32 = 2750;
-    var geff_pk: u32 = 3000;
-    var seff_pk: u32 = 4500;
-    var ieff_pk: u32 = 10000;
-
     for (qn_full) |qn_elem_node| {
         const qn = try ig.parseStruct(Question, qn_elem_node);
-        defer qn_pk += 1;
+        const qn_idx: u32 = @intCast(payload.questions.items.len);
 
         if (qn.name) |name_node| {
             if (ig.strLitAsString(name_node)) |res| switch (res) {
-                .nts => |nts| try payload.symbols.append(gpa, .{ .pk = qn_pk, .name = nts }),
+                .nts => |nts| try payload.symbols.append(gpa, .{
+                    .kind = .question,
+                    .idx = qn_idx,
+                    .name = nts,
+                }),
                 .slice => |slice| try ig.verifySlice(slice, name_node),
             } else |err| switch (err) {
                 error.BadString => {},
@@ -565,10 +572,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
             break :blk .empty;
         };
 
-        try payload.questions.append(gpa, .{
-            .pk = qn_pk,
-            .text = qn_text,
-        });
+        try payload.questions.append(gpa, .{ .text = qn_text });
 
         if (qn.answers) |ans_node| {
             var ans_buf: [2]Tree.Node.Index = undefined;
@@ -576,11 +580,11 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
             for (ans_full) |ans_elem_node| {
                 const ans = try ig.parseStruct(Answer, ans_elem_node);
-                defer ans_pk += 1;
+                const ans_idx: u32 = @intCast(payload.answers.items.len);
 
                 if (ans.name) |name_node| {
                     if (ig.strLitAsString(name_node)) |res| switch (res) {
-                        .nts => |nts| try payload.symbols.append(gpa, .{ .pk = ans_pk, .name = nts }),
+                        .nts => |nts| try payload.symbols.append(gpa, .{ .kind = .answer, .idx = ans_idx, .name = nts }),
                         .slice => |slice| try ig.verifySlice(slice, name_node),
                     } else |err| switch (err) {
                         error.BadString => {},
@@ -603,25 +607,26 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                     break :blk .empty;
                 };
 
-                const ans_fdbk: Ir.NullTerminatedString = blk: {
-                    if (ans.feedback) |fdbk_node| {
-                        if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
-                            .nts => |nts| break :blk nts,
-                            .slice => |slice| try ig.verifySlice(slice, fdbk_node),
-                        } else |err| switch (err) {
-                            error.BadString => {},
-                            error.OutOfMemory => |e| return e,
-                        }
-                    }
-                    break :blk .empty;
-                };
-
                 try payload.answers.append(gpa, .{
-                    .pk = ans_pk,
-                    .qn = qn_pk,
+                    .qn = qn_idx,
                     .text = ans_text,
-                    .fdbk = ans_fdbk,
                 });
+
+                if (ans.feedback) |fdbk_node| {
+                    try payload.feedbacks.append(gpa, .{
+                        .ans = ans_idx,
+                        .text = text: {
+                            if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
+                                .nts => |nts| break :text nts,
+                                .slice => |slice| try ig.verifySlice(slice, fdbk_node),
+                            } else |err| switch (err) {
+                                error.BadString => {},
+                                error.OutOfMemory => |e| return e,
+                            }
+                            break :text .empty;
+                        },
+                    });
+                }
 
                 if (ans.global_effects) |geff_node| {
                     var geff_buf: [2]Tree.Node.Index = undefined;
@@ -629,11 +634,12 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                     for (geff_full) |geff_elem_node| {
                         const eff = try ig.parseStruct(Effect, geff_elem_node);
-                        defer geff_pk += 1;
 
                         const tgt_pk: u32 = blk: {
                             if (eff.target) |tgt_node| {
-                                if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| break :blk tgt;
+                                if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
+                                    break :blk tgt;
+                                }
                             } else {
                                 try ig.addErrorNode(geff_elem_node, "global effect requires 'target' field", .{});
                             }
@@ -650,12 +656,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                         };
 
                         try payload.global_effects.append(gpa, .{
-                            .pk = geff_pk,
-                            .eff = .{
-                                .ans = ans_pk,
-                                .tgt = tgt_pk,
-                                .mult = mult,
-                            },
+                            .ans = ans_idx,
+                            .tgt = tgt_pk,
+                            .mult = mult,
                         });
                     }
                 }
@@ -666,11 +669,12 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                     for (seff_full) |seff_elem_node| {
                         const seff = try ig.parseStruct(StateEffect, seff_elem_node);
-                        defer seff_pk += 1;
 
                         const state_pk: u32 = blk: {
                             if (seff.state) |state_node| {
-                                if (try ig.resolvePk(state_node, &ig.states)) |state| break :blk state;
+                                if (try ig.resolvePk(state_node, &ig.states)) |state| {
+                                    break :blk state;
+                                }
                             } else {
                                 try ig.addErrorNode(seff_elem_node, "issue effect requires 'issue' field", .{});
                             }
@@ -683,11 +687,12 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                             for (effs_full) |effs_elem_node| {
                                 const eff = try ig.parseStruct(Effect, effs_elem_node);
-                                defer seff_pk += 1;
 
                                 const tgt_pk: u32 = blk: {
                                     if (eff.target) |tgt_node| {
-                                        if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| break :blk tgt;
+                                        if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
+                                            break :blk tgt;
+                                        }
                                     } else {
                                         try ig.addErrorNode(effs_elem_node, "effect requires 'target' field", .{});
                                     }
@@ -704,10 +709,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                                 };
 
                                 try payload.state_effects.append(gpa, .{
-                                    .pk = seff_pk,
                                     .state = state_pk,
                                     .eff = .{
-                                        .ans = ans_pk,
+                                        .ans = ans_idx,
                                         .tgt = tgt_pk,
                                         .mult = mult,
                                     },
@@ -725,7 +729,6 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                     for (ieff_full) |ieff_elem_node| {
                         const ieff = try ig.parseStruct(IssueEffect, ieff_elem_node);
-                        defer ieff_pk += 1;
 
                         const tgt_resolved: Ir.Payload.IssueEffect.TgtUnion = t: {
                             if (ieff.target) |target| {
@@ -738,10 +741,14 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                                     });
                                 }
                                 if (tgt.candidate) |cand| {
-                                    if (try ig.resolvePk(cand, &ig.candidates)) |pk| break :t .{ .cand = pk };
+                                    if (try ig.resolvePk(cand, &ig.candidates)) |pk| {
+                                        break :t .{ .cand = pk };
+                                    }
                                 }
                                 if (tgt.state) |state| {
-                                    if (try ig.resolvePk(state, &ig.states)) |pk| break :t .{ .state = pk };
+                                    if (try ig.resolvePk(state, &ig.states)) |pk| {
+                                        break :t .{ .state = pk };
+                                    }
                                 }
                             }
                             break :t .{ .cand = ig.player };
@@ -749,7 +756,9 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
 
                         const iss_pk: u32 = blk: {
                             if (ieff.issue) |iss_node| {
-                                if (try ig.resolvePk(iss_node, &ig.issues)) |iss| break :blk iss;
+                                if (try ig.resolvePk(iss_node, &ig.issues)) |iss| {
+                                    break :blk iss;
+                                }
                             } else {
                                 try ig.addErrorNode(ieff_elem_node, "issue effect requires 'issue' field", .{});
                             }
@@ -775,8 +784,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                         };
 
                         try payload.issue_effects.append(gpa, .{
-                            .pk = ieff_pk,
-                            .ans = ans_pk,
+                            .ans = ans_idx,
                             .issue = iss_pk,
                             .score = score,
                             .impt = impt,
@@ -819,6 +827,10 @@ const Answer = struct {
     global_effects: ?Tree.Node.Index = null,
     state_effects: ?Tree.Node.Index = null,
     issue_effects: ?Tree.Node.Index = null,
+};
+
+const Feedback = struct {
+    text: ?Tree.Node.Index,
 };
 
 const Effect = struct {
