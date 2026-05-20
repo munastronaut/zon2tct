@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 
 pub const ErrorBundle = @import("ErrorBundle.zig");
-pub const Ir = @import("Tree.zig");
+pub const Ir = @import("Ir.zig");
 pub const IrGen = @import("IrGen.zig");
 pub const Lexer = @import("Lexer.zig");
 pub const Parse = @import("Parse.zig");
