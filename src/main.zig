@@ -77,7 +77,7 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.len <= 1) fatal("expected command argument", .{});
 
-    return mainArgs(gpa, arena, io, args);
+    return mainArgs(gpa, arena, io, args, init.environ_map);
 }
 
 fn mainArgs(
@@ -148,7 +148,6 @@ fn buildOutput(
         .on
     else
         .auto;
-    _ = color;
 
     var args_iter: ArgsIterator = .{ .args = args[2..] };
     while (args_iter.next()) |arg| {
@@ -175,12 +174,16 @@ fn buildOutput(
 
     if (src_file == null) fatal("expected positional argument or --name [name]", .{});
 
-    const comp = Compilation.create(gpa, arena, io, .{ .provided_name = provided_name }) catch |err| {
+    const comp = Compilation.create(gpa, arena, io, .{
+        .color = color,
+        .src_file = src_file.?,
+        .provided_name = provided_name,
+    }) catch |err| {
         fatal("failed to create compilation: {t}", .{err});
     };
-    _ = comp;
+    try comp.work();
 
-    fatal("TODO emission", .{});
+    return cleanExit(io);
 }
 
 const usage_init =

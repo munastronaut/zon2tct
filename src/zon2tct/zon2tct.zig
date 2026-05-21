@@ -1,6 +1,7 @@
 const std = @import("std");
 const Io = std.Io;
 const mem = std.mem;
+const Allocator = mem.Allocator;
 const Writer = Io.Writer;
 
 pub const ErrorBundle = @import("ErrorBundle.zig");
@@ -10,6 +11,8 @@ pub const Lexer = @import("Lexer.zig");
 pub const Parse = @import("Parse.zig");
 pub const Token = Lexer.Token;
 pub const Tree = @import("Tree.zig");
+
+pub const max_src_size = std.math.maxInt(u32);
 
 pub const Color = enum {
     auto,
@@ -81,16 +84,51 @@ pub fn stringEscape(bytes: []const u8, w: *Writer) Writer.Error!void {
     };
 }
 
-fn isValidId(bytes: []const u8) bool {
+pub fn isValidId(bytes: []const u8) bool {
     if (bytes.len == 0) return false;
     for (bytes, 0..) |c, i| {
         switch (c) {
-            '_', 'a'...'Z', 'A'...'Z' => {},
+            '_', 'a'...'z', 'A'...'Z' => {},
             '0'...'9' => if (i == 0) return false,
             else => return false,
         }
     }
     return true;
+}
+
+pub fn readSourceFileToEndAlloc(gpa: Allocator, file_reader: *Io.File.Reader) ![:0]u8 {
+    var buf: std.ArrayList(u8) = .empty;
+    defer buf.deinit(gpa);
+
+    if (file_reader.getSize()) |size| {
+        const casted_size = std.math.cast(u32, size) orelse return error.StreamTooLong;
+        try buf.ensureTotalCapacity(gpa, casted_size + 1);
+    } else |_| {}
+
+    try file_reader.interface.appendRemaining(gpa, &buf, .limited(max_src_size));
+
+    const unsupported_boms = [_][]const u8{
+        "\xff\xfe\x00\x00",
+        "\xfe\xff\x00\x00",
+        "\xfe\xff",
+    };
+    for (unsupported_boms) |bom| {
+        if (mem.startsWith(u8, buf.items, bom)) {
+            return error.UnsupportedEncoding;
+        }
+    }
+
+    if (mem.startsWith(u8, buf.items, "\xff\xfe")) {
+        if (buf.items.len % 2 != 0) return error.InvalidEncoding;
+        return std.unicode.utf16LeToUtf8AllocZ(gpa, @ptrCast(@alignCast(buf.items))) catch |err| switch (err) {
+            error.DanglingSurrogateHalf => error.UnsupportedEncoding,
+            error.ExpectedSecondSurrogateHalf => error.UnsupportedEncoding,
+            error.UnexpectedSecondSurrogateHalf => error.UnsupportedEncoding,
+            else => |e| return e,
+        };
+    }
+
+    return buf.toOwnedSliceSentinel(gpa, 0);
 }
 
 pub const EnvVar = enum {

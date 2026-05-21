@@ -1,7 +1,7 @@
 const Emit = @This();
 
 const Compilation = @import("Compilation.zig");
-const zon2tct = @import("zon2tct/zon2tct.zig");
+const zon2tct = @import("zon2tct");
 
 const std = @import("std");
 const Writer = std.Io.Writer;
@@ -184,4 +184,6 @@ pub fn emit(e: *Emit) !void {
         }
         try w.writeAll("];\n\n");
     }
+
+    return w.flush();
 }
