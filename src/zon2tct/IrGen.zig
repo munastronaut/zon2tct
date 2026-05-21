@@ -433,13 +433,14 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
                 return val;
             } else {
                 const suggestion = ig.suggest(slice, table);
+                const ident = idx.getAny(ig.string_bytes.items);
                 if (suggestion != .empty) {
                     const str = suggestion.getAny(ig.string_bytes.items);
-                    try ig.addErrorTokNotes(tok, "undefined alias '{s}'", .{slice}, &.{
+                    try ig.addErrorTokNotes(tok, "undefined alias '{s}'", .{ident}, &.{
                         try ig.errNoteTok(tok, "did you mean '{s}'?", .{str}),
                     });
                 } else {
-                    try ig.addErrorTok(tok, "undefined alias '{s}'", .{slice});
+                    try ig.addErrorTok(tok, "undefined alias '{s}'", .{ident});
                 }
             }
         } else |err| switch (err) {
