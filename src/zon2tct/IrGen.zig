@@ -432,8 +432,8 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
             if (table.getAdapted(@intFromEnum(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
                 return val;
             } else {
-                const suggestion = ig.suggest(slice, table);
                 const ident = idx.getAny(ig.string_bytes.items);
+                const suggestion = ig.suggest(ident, table);
                 if (suggestion != .empty) {
                     const str = suggestion.getAny(ig.string_bytes.items);
                     try ig.addErrorTokNotes(tok, "undefined alias '{s}'", .{ident}, &.{
