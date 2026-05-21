@@ -22,7 +22,7 @@ pub const Player = union(enum) {
     /// In that case, the emitter should fall back to the variable `e.candidate_id`.
     default,
 
-    pub fn format(p: Player, w: Writer) Writer.Error!void {
+    pub fn format(p: Player, w: *Writer) Writer.Error!void {
         return switch (p) {
             .pk => |pk| w.printInt(pk, 10, .lower, .{}),
             .default => w.writeAll("e.candidate_id"),
@@ -31,23 +31,57 @@ pub const Player = union(enum) {
 };
 
 pub const Payload = struct {
-    symbols: std.ArrayList(Symbol),
-    questions: std.ArrayList(Question),
-    answers: std.ArrayList(Answer),
-    feedbacks: std.ArrayList(Feedback),
-    global_effects: std.ArrayList(Effect),
-    state_effects: std.ArrayList(StateEffect),
-    issue_effects: std.ArrayList(IssueEffect),
+    symbols: []Symbol,
+    questions: []Question,
+    answers: []Answer,
+    feedbacks: []Feedback,
+    global_effects: []Effect,
+    state_effects: []StateEffect,
+    issue_effects: []IssueEffect,
 
-    pub fn deinit(p: *Payload, gpa: Allocator) void {
-        p.symbols.deinit(gpa);
-        p.questions.deinit(gpa);
-        p.answers.deinit(gpa);
-        p.feedbacks.deinit(gpa);
-        p.global_effects.deinit(gpa);
-        p.state_effects.deinit(gpa);
-        p.issue_effects.deinit(gpa);
+    pub fn deinit(payload: *Payload, gpa: Allocator) void {
+        gpa.free(payload.symbols);
+        gpa.free(payload.questions);
+        gpa.free(payload.answers);
+        gpa.free(payload.feedbacks);
+        gpa.free(payload.global_effects);
+        gpa.free(payload.state_effects);
+        gpa.free(payload.issue_effects);
+        payload.* = undefined;
     }
+
+    pub const Wip = struct {
+        symbols: std.ArrayList(Symbol),
+        questions: std.ArrayList(Question),
+        answers: std.ArrayList(Answer),
+        feedbacks: std.ArrayList(Feedback),
+        global_effects: std.ArrayList(Effect),
+        state_effects: std.ArrayList(StateEffect),
+        issue_effects: std.ArrayList(IssueEffect),
+
+        pub fn deinit(wip: *Wip, gpa: Allocator) void {
+            wip.symbols.deinit(gpa);
+            wip.questions.deinit(gpa);
+            wip.answers.deinit(gpa);
+            wip.feedbacks.deinit(gpa);
+            wip.global_effects.deinit(gpa);
+            wip.state_effects.deinit(gpa);
+            wip.issue_effects.deinit(gpa);
+            wip.* = undefined;
+        }
+
+        pub fn toOwnedPayload(wip: *Wip, gpa: Allocator) Allocator.Error!Payload {
+            return .{
+                .symbols = try wip.symbols.toOwnedSlice(gpa),
+                .questions = try wip.questions.toOwnedSlice(gpa),
+                .answers = try wip.answers.toOwnedSlice(gpa),
+                .feedbacks = try wip.feedbacks.toOwnedSlice(gpa),
+                .global_effects = try wip.global_effects.toOwnedSlice(gpa),
+                .state_effects = try wip.state_effects.toOwnedSlice(gpa),
+                .issue_effects = try wip.issue_effects.toOwnedSlice(gpa),
+            };
+        }
+    };
 
     pub const Symbol = struct {
         kind: enum { question, answer },
@@ -90,6 +124,23 @@ pub const Payload = struct {
         pub const TgtUnion = union(enum) {
             cand: ?u32,
             state: u32,
+
+            pub fn format(u: TgtUnion, w: *Writer) Writer.Error!void {
+                switch (u) {
+                    .cand => |cand| if (cand) |pk| {
+                        try w.print(
+                            \\
+                            \\      tag: "CANDIDATE",
+                            \\      candidate: {d},
+                        , .{pk});
+                    },
+                    .state => |pk| try w.print(
+                        \\
+                        \\      tag: "STATE",
+                        \\      state: {d},
+                    , .{pk}),
+                }
+            }
         };
     };
 };

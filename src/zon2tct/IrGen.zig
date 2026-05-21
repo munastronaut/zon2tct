@@ -46,7 +46,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
     try ig.string_bytes.append(gpa, 0);
 
-    var payload: Ir.Payload = .{
+    var wip: Ir.Payload.Wip = .{
         .symbols = .empty,
         .questions = .empty,
         .answers = .empty,
@@ -55,7 +55,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         .state_effects = .empty,
         .issue_effects = .empty,
     };
-    errdefer payload.deinit(gpa);
+    errdefer wip.deinit(gpa);
 
     if (tree.errors.len == 0) {
         const root_node = tree.nodeData(.root).node;
@@ -70,7 +70,7 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         }
 
         if (root.questions) |qn_node| {
-            try ig.lowerQuestions(&payload, qn_node);
+            try ig.lowerQuestions(&wip, qn_node);
         } else {
             try ig.addErrorNode(root_node, "root node must have 'questions' field", .{});
         }
@@ -81,6 +81,8 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     if (ig.compile_errors.items.len > 0) {
         const string_bytes = try ig.string_bytes.toOwnedSlice(gpa);
         errdefer gpa.free(string_bytes);
+        var payload = try wip.toOwnedPayload(gpa);
+        errdefer payload.deinit(gpa);
         const compile_errors = try ig.compile_errors.toOwnedSlice(gpa);
         errdefer gpa.free(compile_errors);
         const error_notes = try ig.error_notes.toOwnedSlice(gpa);
@@ -98,6 +100,8 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
 
         const string_bytes = try ig.string_bytes.toOwnedSlice(gpa);
         errdefer gpa.free(string_bytes);
+        var payload = try wip.toOwnedPayload(gpa);
+        errdefer payload.deinit(gpa);
 
         return .{
             .string_bytes = string_bytes,
@@ -141,12 +145,12 @@ test generate {
         eb.renderToStderr(io, .auto) catch {};
     }
 
-    const fields = @typeInfo(Ir.Payload).@"struct".fields;
-    inline for (fields) |field| {
-        for (@field(ir.payload, field.name).items) |item| {
-            std.debug.print("{any}\n", .{item});
-        }
-    }
+    //const fields = @typeInfo(Ir.Payload).@"struct".fields;
+    //inline for (fields) |field| {
+    //    for (@field(ir.payload, field.name)) |item| {
+    //        std.debug.print("{any}\n", .{item});
+    //    }
+    //}
 }
 
 fn deinit(ig: *IrGen) void {
@@ -533,7 +537,7 @@ fn resolveArray(ig: *IrGen, buf: *[2]Tree.Node.Index, node: Tree.Node.Index) ![]
     return &.{};
 }
 
-fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !void {
+fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index) !void {
     const gpa = ig.gpa;
 
     var qn_buf: [2]Tree.Node.Index = undefined;
@@ -751,7 +755,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload, qn_node: Tree.Node.Index) !v
                                     }
                                 }
                             }
-                            break :t .{ .cand = ig.player };
+                            break :t .{ .cand = null };
                         };
 
                         const iss_pk: u32 = blk: {

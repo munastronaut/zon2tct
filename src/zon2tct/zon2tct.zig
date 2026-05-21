@@ -1,6 +1,7 @@
 const std = @import("std");
 const Io = std.Io;
 const mem = std.mem;
+const Writer = Io.Writer;
 
 pub const ErrorBundle = @import("ErrorBundle.zig");
 pub const Ir = @import("Ir.zig");
@@ -57,6 +58,39 @@ pub fn findLineColumn(src: []const u8, byte_off: usize) Loc {
         .column = column,
         .src_line = src[line_start..i],
     };
+}
+
+pub fn fmtString(bytes: []const u8) std.fmt.Alt([]const u8, stringEscape) {
+    return .{ .data = bytes };
+}
+
+pub fn stringEscape(bytes: []const u8, w: *Writer) Writer.Error!void {
+    for (bytes) |byte| switch (byte) {
+        '\n' => try w.writeAll("\\n"),
+        '\r' => try w.writeAll("\\r"),
+        '\t' => try w.writeAll("\\t"),
+        '\\' => try w.writeAll("\\\\"),
+        '"' => try w.writeAll("\\\""),
+        '\'' => try w.writeByte('\''),
+        ' ', '!', '#'...'&', '('...'[', ']'...'~' => try w.writeByte(byte),
+        else => if (std.ascii.isControl(byte)) {
+            try w.print("\\u{x:0>4}", .{byte});
+        } else {
+            try w.writeByte(byte);
+        },
+    };
+}
+
+fn isValidId(bytes: []const u8) bool {
+    if (bytes.len == 0) return false;
+    for (bytes, 0..) |c, i| {
+        switch (c) {
+            '_', 'a'...'Z', 'A'...'Z' => {},
+            '0'...'9' => if (i == 0) return false,
+            else => return false,
+        }
+    }
+    return true;
 }
 
 pub const EnvVar = enum {
