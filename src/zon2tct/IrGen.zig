@@ -449,9 +449,10 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
         },
         .negation => {
             const child_node = tree.nodeData(pk_node).node;
+            const child_slice = tree.tokenSlice(tree.nodeMainToken(child_node));
             switch (tree.nodeId(child_node)) {
                 .number_literal => {
-                    if (std.fmt.parseInt(i33, slice, 10)) |pk| {
+                    if (std.fmt.parseInt(u32, child_slice, 10)) |pk| {
                         if (pk == 0) {
                             try ig.addErrorTokNotes(tok, "integer literal '-0' is ambiguous", .{}, &.{
                                 try ig.errNoteTok(tok, "use '0' for an integer zero", .{}),
@@ -461,13 +462,12 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
                             try ig.addErrorTok(tok, "integer pk underflows u32 range", .{});
                         }
                     } else |err| switch (err) {
-                        error.Overflow => unreachable,
+                        error.Overflow => try ig.addErrorTok(tok, "integer pk underflows u32 range", .{}),
                         error.InvalidCharacter => try ig.addErrorTok(tok, "invalid character in integer pk", .{}),
                     }
                 },
                 .identifier => {
-                    const child_ident = tree.tokenSlice(tree.nodeMainToken(child_node));
-                    if (mem.eql(u8, child_ident, "inf")) {
+                    if (mem.eql(u8, child_slice, "inf")) {
                         try ig.addErrorTok(tok, "'inf' can be only represented by floats; cannot be used for negation with u32", .{});
                     }
                 },
