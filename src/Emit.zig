@@ -51,7 +51,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.questions_json = [");
         for (payload.questions, 0..) |question, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.question",
@@ -72,7 +71,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.answers_json = [");
         for (payload.answers, 0..) |answer, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.answer",
@@ -96,7 +94,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.answer_feedback_json = [");
         for (payload.feedbacks, 0..) |feedback, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.answer_feedback",
@@ -122,7 +119,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.answer_score_global_json = [");
         for (payload.global_effects, 0..) |geff, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.answer_score_global",
@@ -144,7 +140,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.answer_score_state_json = [");
         for (payload.state_effects, 0..) |seff, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.answer_score_state",
@@ -167,7 +162,6 @@ pub fn emit(e: *Emit) !void {
         try w.writeAll("e.answer_score_issue_json = [");
         for (payload.issue_effects, 0..) |ieff, i| {
             if (i == 0) try w.writeByte('\n');
-
             try w.print(
                 \\  {{
                 \\    model: "campaign_trail.candidate_issue_score",
