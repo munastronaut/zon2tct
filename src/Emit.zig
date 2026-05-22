@@ -131,7 +131,13 @@ pub fn emit(e: *Emit) !void {
                 \\    }}
                 \\  }},
                 \\
-            , .{ base_geff + i, base_ans + geff.ans, ir.player, geff.tgt, geff.mult });
+            , .{
+                base_geff + i,
+                base_ans + geff.ans,
+                ir.player,
+                geff.tgt,
+                geff.mult,
+            });
         }
         try w.writeAll("];\n\n");
     }
@@ -153,7 +159,14 @@ pub fn emit(e: *Emit) !void {
                 \\    }}
                 \\  }},
                 \\
-            , .{ base_seff + i, base_ans + seff.eff.ans, seff.state, ir.player, seff.eff.tgt, seff.eff.mult });
+            , .{
+                base_seff + i,
+                base_ans + seff.eff.ans,
+                seff.state,
+                ir.player,
+                seff.eff.tgt,
+                seff.eff.mult,
+            });
         }
         try w.writeAll("];\n\n");
     }
@@ -174,7 +187,14 @@ pub fn emit(e: *Emit) !void {
                 \\    }}
                 \\  }},
                 \\
-            , .{ base_ieff + i, ieff.tgt, base_ans + ieff.ans, ieff.issue, ieff.score, ieff.impt });
+            , .{
+                base_ieff + i,
+                ieff.tgt,
+                base_ans + ieff.ans,
+                ieff.issue,
+                ieff.score,
+                ieff.impt,
+            });
         }
         try w.writeAll("];\n\n");
     }
