@@ -55,6 +55,7 @@ pub const Token = struct {
                 .string_literal => "a string literal",
                 .multiline_string_literal_line => "a multiline string literal",
                 .char_literal => "a character literal",
+                .eof => "EOF",
                 .number_literal => "a number literal",
                 else => unreachable,
             };
