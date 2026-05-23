@@ -16,7 +16,10 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .strip = true,
+            .strip = switch (optimize) {
+                .Debug, .ReleaseSafe => false,
+                .ReleaseFast, .ReleaseSmall => true,
+            },
         }),
     });
     exe.root_module.addImport("zon2tct", zon2tct_mod);
