@@ -1031,8 +1031,9 @@ fn lowerAstErrors(ig: *IrGen) Allocator.Error!void {
 }
 
 fn suggest(ig: *IrGen, str: []const u8, table: *const SymbolTable) Ir.NullTerminatedString {
-    var sf = std.heap.stackFallback(256, ig.gpa);
-    const gpa = sf.get();
+    var bfa_buf: [256]u8 = undefined;
+    var bfa: std.heap.BufferFirstAllocator = .init(&bfa_buf, ig.gpa);
+    const gpa = bfa.allocator();
 
     var nearest_match: Ir.NullTerminatedString = .empty;
     var min_dist: u32 = 4;
