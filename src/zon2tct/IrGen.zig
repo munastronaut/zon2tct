@@ -551,7 +551,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
 
         if (qn.name) |name_node| {
             const node_id = tree.nodeId(name_node);
-            if (node_id != .string_literal) {
+            if (node_id != .string_literal and node_id != .multiline_string_literal) {
                 try ig.addErrorNode(name_node, "expected string literal", .{});
             } else if (ig.strLitAsString(name_node)) |res| switch (res) {
                 .nts => |nts| try payload.symbols.append(gpa, .{
@@ -569,7 +569,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
         const qn_text: Ir.NullTerminatedString = blk: {
             if (qn.text) |text_node| {
                 const node_id = tree.nodeId(text_node);
-                if (node_id != .string_literal) {
+                if (node_id != .string_literal and node_id != .multiline_string_literal) {
                     try ig.addErrorNode(text_node, "expected string literal", .{});
                 } else if (ig.strLitAsString(text_node)) |res| switch (res) {
                     .nts => |nts| break :blk nts,
@@ -596,7 +596,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
 
                 if (ans.name) |name_node| {
                     const node_id = tree.nodeId(name_node);
-                    if (node_id != .string_literal) {
+                    if (node_id != .string_literal and node_id != .multiline_string_literal) {
                         try ig.addErrorNode(name_node, "expected string literal", .{});
                     } else if (ig.strLitAsString(name_node)) |res| switch (res) {
                         .nts => |nts| try payload.symbols.append(gpa, .{ .kind = .answer, .idx = ans_idx, .name = nts }),
@@ -610,7 +610,7 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
                 const ans_text: Ir.NullTerminatedString = blk: {
                     if (ans.text) |text_node| {
                         const node_id = tree.nodeId(text_node);
-                        if (node_id != .string_literal) {
+                        if (node_id != .string_literal and node_id != .multiline_string_literal) {
                             try ig.addErrorNode(text_node, "expected string literal", .{});
                         } else if (ig.strLitAsString(text_node)) |res| switch (res) {
                             .nts => |nts| break :blk nts,
@@ -635,8 +635,8 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
                         .ans = ans_idx,
                         .text = text: {
                             const node_id = tree.nodeId(fdbk_node);
-                            if (node_id != .string_literal) {
-                                try ig.addErrorNode(ans_elem_node, "answer requires 'text' field", .{});
+                            if (node_id != .string_literal and node_id != .multiline_string_literal) {
+                                try ig.addErrorNode(ans_elem_node, "expected string literal", .{});
                             } else if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
                                 .nts => |nts| break :text nts,
                                 .slice => |slice| try ig.verifySlice(slice, fdbk_node),
