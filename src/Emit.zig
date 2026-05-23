@@ -33,13 +33,9 @@ pub fn emit(e: *Emit) !void {
 
             if (i == 0) try w.writeByte('\n');
             if (zon2tct.isValidId(key)) {
-                try w.print(
-                    \\  {s}: {d}
-                , .{ key, pk });
+                try w.print("  {s}: {d},\n", .{ key, pk });
             } else {
-                try w.print(
-                    \\  "{s}": {d}
-                , .{ key, pk });
+                try w.print("  \"{s}\": {d},\n", .{ key, pk });
             }
         }
         try w.writeAll("};\n\n");
