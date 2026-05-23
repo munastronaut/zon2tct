@@ -540,6 +540,7 @@ fn resolveArray(ig: *IrGen, buf: *[2]Tree.Node.Index, node: Tree.Node.Index) ![]
 
 fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index) !void {
     const gpa = ig.gpa;
+    const tree = ig.tree;
 
     var qn_buf: [2]Tree.Node.Index = undefined;
     const qn_full = try ig.resolveArray(&qn_buf, qn_node);
@@ -549,7 +550,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
         const qn_idx: u32 = @intCast(payload.questions.items.len);
 
         if (qn.name) |name_node| {
-            if (ig.strLitAsString(name_node)) |res| switch (res) {
+            const node_id = tree.nodeId(name_node);
+            if (node_id != .string_literal) {
+                try ig.addErrorNode(name_node, "expected string literal", .{});
+            } else if (ig.strLitAsString(name_node)) |res| switch (res) {
                 .nts => |nts| try payload.symbols.append(gpa, .{
                     .kind = .question,
                     .idx = qn_idx,
@@ -564,7 +568,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
 
         const qn_text: Ir.NullTerminatedString = blk: {
             if (qn.text) |text_node| {
-                if (ig.strLitAsString(text_node)) |res| switch (res) {
+                const node_id = tree.nodeId(text_node);
+                if (node_id != .string_literal) {
+                    try ig.addErrorNode(text_node, "expected string literal", .{});
+                } else if (ig.strLitAsString(text_node)) |res| switch (res) {
                     .nts => |nts| break :blk nts,
                     .slice => |slice| try ig.verifySlice(slice, text_node),
                 } else |err| switch (err) {
@@ -588,7 +595,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
                 const ans_idx: u32 = @intCast(payload.answers.items.len);
 
                 if (ans.name) |name_node| {
-                    if (ig.strLitAsString(name_node)) |res| switch (res) {
+                    const node_id = tree.nodeId(name_node);
+                    if (node_id != .string_literal) {
+                        try ig.addErrorNode(name_node, "expected string literal", .{});
+                    } else if (ig.strLitAsString(name_node)) |res| switch (res) {
                         .nts => |nts| try payload.symbols.append(gpa, .{ .kind = .answer, .idx = ans_idx, .name = nts }),
                         .slice => |slice| try ig.verifySlice(slice, name_node),
                     } else |err| switch (err) {
@@ -599,7 +609,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
 
                 const ans_text: Ir.NullTerminatedString = blk: {
                     if (ans.text) |text_node| {
-                        if (ig.strLitAsString(text_node)) |res| switch (res) {
+                        const node_id = tree.nodeId(text_node);
+                        if (node_id != .string_literal) {
+                            try ig.addErrorNode(text_node, "expected string literal", .{});
+                        } else if (ig.strLitAsString(text_node)) |res| switch (res) {
                             .nts => |nts| break :blk nts,
                             .slice => |slice| try ig.verifySlice(slice, text_node),
                         } else |err| switch (err) {
@@ -621,7 +634,10 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
                     try payload.feedbacks.append(gpa, .{
                         .ans = ans_idx,
                         .text = text: {
-                            if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
+                            const node_id = tree.nodeId(fdbk_node);
+                            if (node_id != .string_literal) {
+                                try ig.addErrorNode(ans_elem_node, "answer requires 'text' field", .{});
+                            } else if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
                                 .nts => |nts| break :text nts,
                                 .slice => |slice| try ig.verifySlice(slice, fdbk_node),
                             } else |err| switch (err) {
