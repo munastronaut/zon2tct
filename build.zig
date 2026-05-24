@@ -103,15 +103,10 @@ pub fn build(b: *std.Build) !void {
         compress_cmd.step.dependOn(&install_dir.step);
         compress_cmd.setCwd(.{ .cwd_relative = b.getInstallPath(.prefix, tgt_str) });
 
-        const clean_cmd = b.addSystemCommand(&.{
-            if (b.graph.host.result.os.tag == .windows) "rmdir" else "rm",
-            if (b.graph.host.result.os.tag == .windows) "/s" else "-rf",
-            if (b.graph.host.result.os.tag == .windows) "/q" else "",
-        });
-
-        if (b.graph.host.result.os.tag != .windows) {
-            _ = clean_cmd.argv.pop();
-        }
+        const clean_cmd = if (b.graph.host.result.os.tag == .windows)
+            b.addSystemCommand(&.{ "rmdir", "/s", "/q" })
+        else
+            b.addSystemCommand(&.{ "rm", "-rf" });
 
         clean_cmd.addArg(b.getInstallPath(.prefix, tgt_str));
         clean_cmd.step.dependOn(&compress_cmd.step);
