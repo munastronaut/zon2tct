@@ -39,14 +39,10 @@ pub fn build(b: *std.Build) !void {
     const release_step = b.step("release", "Build the application for release targets");
 
     const dist_path = b.getInstallPath(.prefix, "dist");
-    const make_dist_cmd = b.addSystemCommand(&.{
-        "mkdir",
-        if (b.graph.host.result.os.tag == .windows) "" else "-p",
-        dist_path,
-    });
-    if (b.graph.host.result.os.tag == .windows) {
-        _ = make_dist_cmd.argv.orderedRemove(1);
-    }
+    const make_dist_cmd = if (b.graph.host.result.os.tag == .windows)
+        b.addSystemCommand(&.{ "mkdir", dist_path })
+    else
+        b.addSystemCommand(&.{ "mkdir", "-p", dist_path });
 
     const tgts = [_]std.Target.Query{
         .{ .cpu_arch = .x86_64, .os_tag = .linux },
