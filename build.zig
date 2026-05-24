@@ -37,7 +37,6 @@ pub fn build(b: *std.Build) !void {
     }
 
     const release_step = b.step("release", "Build the application for release targets");
-    release_step.dependOn(b.getInstallStep());
 
     const dist_path = b.getInstallPath(.prefix, "dist");
     const make_dist_cmd = b.addSystemCommand(&.{
