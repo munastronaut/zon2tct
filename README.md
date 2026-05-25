@@ -15,10 +15,10 @@ zon2tct build scenario.zon
 If you are on Windows, you invoke it as `zon2tct.exe`. To initialize a project, you may invoke this command:
 
 ```
-zon2tct init --name project
+zon2tct init --name '1972'
 ```
 
-If `--name` is omitted, the default project name is `scenario`.
+If `--name [name]` is omitted, the default project name is `scenario`.
 
 ## Information
 
