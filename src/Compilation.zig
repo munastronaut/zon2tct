@@ -71,10 +71,11 @@ pub fn work(comp: *Compilation) !void {
         std.process.exit(1);
     }
 
-    const out_name = if (comp.provided_name) |name|
-        try mem.concat(comp.arena, u8, &.{ name, ".js" })
-    else
-        try mem.concat(comp.arena, u8, &.{ Io.Dir.path.stem(comp.src_file), ".js" });
+    const out_name = try mem.concat(
+        comp.arena,
+        u8,
+        &.{ comp.provided_name orelse Io.Dir.path.stem(comp.src_file), ".js" },
+    );
 
     var artifact_file = try Io.Dir.cwd().createFile(io, out_name, .{});
     defer artifact_file.close(io);
