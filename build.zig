@@ -24,6 +24,16 @@ pub fn build(b: *std.Build) !void {
     });
     exe.root_module.addImport("zon2tct", zon2tct_mod);
 
+    const exe_options = b.addOptions();
+    exe.root_module.addOptions("build_options", exe_options);
+
+    const version_str = b.fmt(
+        "{d}.{d}.{d}",
+        .{ zon2tct_version.major, zon2tct_version.minor, zon2tct_version.patch },
+    );
+    const version = try b.allocator.dupeSentinel(u8, version_str, 0);
+    exe_options.addOption([:0]const u8, "version", version);
+
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
@@ -71,8 +81,8 @@ pub fn build(b: *std.Build) !void {
         });
         release_exe.root_module.addImport("zon2tct", zon2tct_mod);
 
-        const tgt_str = try std.fmt.allocPrint(b.allocator, "{t}-{t}", .{ res_tgt.result.cpu.arch, res_tgt.result.os.tag });
-        const archive_name = try std.fmt.allocPrint(b.allocator, "zon2tct-{s}-{d}.{d}.{d}", .{
+        const tgt_str = b.fmt("{t}-{t}", .{ res_tgt.result.cpu.arch, res_tgt.result.os.tag });
+        const archive_name = b.fmt("zon2tct-{s}-{d}.{d}.{d}", .{
             tgt_str,
             zon2tct_version.major,
             zon2tct_version.minor,
@@ -87,11 +97,11 @@ pub fn build(b: *std.Build) !void {
         compress_cmd.step.dependOn(&make_dist_cmd.step);
 
         if (res_tgt.result.os.tag == .windows) {
-            const archive_file = try std.fmt.allocPrint(b.allocator, "dist/{s}.zip", .{archive_name});
+            const archive_file = b.fmt("dist/{s}.zip", .{archive_name});
             const out_path = b.getInstallPath(.prefix, archive_file);
             compress_cmd.addArgs(&.{ "-acf", out_path, "zon2tct.exe" });
         } else {
-            const archive_file = try std.fmt.allocPrint(b.allocator, "dist/{s}.tar.gz", .{archive_name});
+            const archive_file = b.fmt("dist/{s}.tar.gz", .{archive_name});
             const out_path = b.getInstallPath(.prefix, archive_file);
             compress_cmd.addArgs(&.{ "-czf", out_path, "zon2tct" });
         }
