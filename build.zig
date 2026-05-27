@@ -2,6 +2,8 @@ const std = @import("std");
 
 const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 3, .patch = 0 };
 
+const IoMode = enum { threaded, evented };
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -18,10 +20,11 @@ pub fn build(b: *std.Build) !void {
     const exe_options = b.addOptions();
     exe.root_module.addOptions("build_options", exe_options);
 
-    const version_str = b.fmt(
-        "{d}.{d}.{d}",
-        .{ zon2tct_version.major, zon2tct_version.minor, zon2tct_version.patch },
-    );
+    const version_str = b.fmt("{d}.{d}.{d}", .{
+        zon2tct_version.major,
+        zon2tct_version.minor,
+        zon2tct_version.patch,
+    });
     const version = try b.allocator.dupeSentinel(u8, version_str, 0);
 
     exe_options.addOption([:0]const u8, "version", version);

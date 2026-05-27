@@ -1,3 +1,6 @@
+const builtin = @import("builtin");
+const native_os = builtin.os.tag;
+
 const std = @import("std");
 const Io = std.Io;
 const path = Io.Dir.path;
@@ -17,6 +20,22 @@ const build_options = @import("build_options");
 pub const std_options: std.Options = .{
     .logFn = log,
 };
+
+var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
+
+const usage =
+    \\Usage: {s} [command] [options]
+    \\
+    \\Commands:
+    \\  build         Create scenario code from source
+    \\  init          Create a template file in the current directory
+    \\  version       Print version number and exit
+    \\  help          Print this help and exit
+    \\
+    \\Options:
+    \\  -h, --help    Print command-specific usage
+    \\
+;
 
 pub fn log(
     comptime level: std.log.Level,
@@ -56,30 +75,48 @@ pub fn logInner(
     t.setColor(.reset) catch {};
 }
 
-const usage =
-    \\Usage: {s} [command] [options]
-    \\
-    \\Commands:
-    \\  build         Create scenario code from source
-    \\  init          Create a template file in the current directory
-    \\  version       Print version number and exit
-    \\  help          Print this help and exit
-    \\
-    \\Options:
-    \\  -h, --help    Print command-specific usage
-    \\
-;
+const use_debug_allocator = native_os != .wasi and switch (builtin.mode) {
+    .Debug, .ReleaseSafe => false,
+    .ReleaseFast, .ReleaseSmall => true,
+};
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-    const gpa = init.gpa;
-    const arena = init.arena.allocator();
+const RootAllocator = if (use_debug_allocator) std.heap.DebugAllocator(.{
+    .thread_safe = switch (build_options.io_mode) {
+        .threaded => true,
+        .evented => false,
+    },
+}) else struct {
+    pub const init: RootAllocator = .{};
+    pub fn allocator(_: RootAllocator) Allocator {
+        if (native_os == .wasi) return std.heap.wasm_allocator;
+        return std.heap.smp_allocator;
+    }
+    pub fn deinit(_: RootAllocator) std.heap.Check {
+        return .ok;
+    }
+};
 
-    const args = try init.minimal.args.toSlice(arena);
+pub fn main(init: std.process.Init.Minimal) !void {
+    var root_allocator: RootAllocator = .init;
+    defer _ = root_allocator.deinit();
+    const root_gpa = root_allocator.allocator();
+    var threaded: Io.Threaded = .init(root_gpa, .{
+        .argv0 = .init(init.args),
+        .environ = init.environ,
+    });
+    const io = threaded.io();
+    const gpa = root_gpa;
+    var arena_instance: std.heap.ArenaAllocator = .init(gpa);
+    defer arena_instance.deinit();
+    const arena = arena_instance.allocator();
+
+    const args = try init.args.toSlice(arena);
 
     if (args.len <= 1) fatal("expected command argument", .{});
 
-    return mainArgs(gpa, arena, io, args, init.environ_map);
+    var environ_map = init.environ.createMap(arena) catch |err| fatal("failed to parse environment: {t}", .{err});
+
+    return mainArgs(gpa, arena, io, args, &environ_map);
 }
 
 fn mainArgs(
@@ -106,8 +143,7 @@ fn mainArgs(
 }
 
 fn printUsage(io: Io, comptime str: []const u8, exe_name: []const u8) !void {
-    var buf: [256]u8 = undefined;
-    var w = Io.File.stdout().writer(io, &buf);
+    var w = Io.File.stdout().writer(io, &stdout_buf);
     try w.interface.print(str, .{exe_name});
     try w.interface.flush();
     return cleanExit(io);
