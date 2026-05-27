@@ -6,23 +6,14 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const zon2tct_mod = b.addModule("zon2tct", .{
-        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
+    const exe = addCompilerStep(b, .{
+        .optimize = optimize,
+        .target = target,
+        .strip = switch (optimize) {
+            .Debug, .ReleaseSafe => false,
+            .ReleaseFast, .ReleaseSmall => true,
+        },
     });
-
-    const exe = b.addExecutable(.{
-        .name = "zon2tct",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .strip = switch (optimize) {
-                .Debug, .ReleaseSafe => false,
-                .ReleaseFast, .ReleaseSmall => true,
-            },
-        }),
-    });
-    exe.root_module.addImport("zon2tct", zon2tct_mod);
 
     const exe_options = b.addOptions();
     exe.root_module.addOptions("build_options", exe_options);
@@ -32,6 +23,7 @@ pub fn build(b: *std.Build) !void {
         .{ zon2tct_version.major, zon2tct_version.minor, zon2tct_version.patch },
     );
     const version = try b.allocator.dupeSentinel(u8, version_str, 0);
+
     exe_options.addOption([:0]const u8, "version", version);
 
     b.installArtifact(exe);
@@ -67,19 +59,15 @@ pub fn build(b: *std.Build) !void {
     for (tgts) |tgt| {
         const res_tgt = b.resolveTargetQuery(tgt);
 
-        const release_exe = b.addExecutable(.{
-            .name = "zon2tct",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/main.zig"),
-                .target = res_tgt,
-                .optimize = release_opt,
-                .strip = switch (release_opt) {
-                    .Debug, .ReleaseSafe => false,
-                    .ReleaseFast, .ReleaseSmall => true,
-                },
-            }),
+        const release_exe = addCompilerStep(b, .{
+            .optimize = release_opt,
+            .target = res_tgt,
+            .strip = switch (release_opt) {
+                .Debug, .ReleaseSafe => false,
+                .ReleaseFast, .ReleaseSmall => true,
+            },
         });
-        release_exe.root_module.addImport("zon2tct", zon2tct_mod);
+        release_exe.root_module.addOptions("build_options", exe_options);
 
         const tgt_str = b.fmt("{t}-{t}", .{ res_tgt.result.cpu.arch, res_tgt.result.os.tag });
         const archive_name = b.fmt("zon2tct-{s}-{d}.{d}.{d}", .{
@@ -119,4 +107,33 @@ pub fn build(b: *std.Build) !void {
 
         release_step.dependOn(&clean_cmd.step);
     }
+}
+
+const AddCompilerModOptions = struct {
+    optimize: std.lang.OptimizeMode,
+    target: std.Build.ResolvedTarget,
+    strip: ?bool = null,
+};
+
+fn addCompilerMod(b: *std.Build, options: AddCompilerModOptions) *std.Build.Module {
+    const compiler_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = options.target,
+        .optimize = options.optimize,
+        .strip = options.strip,
+    });
+
+    const zon2tct_mod = b.addModule("zon2tct", .{
+        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
+    });
+    compiler_mod.addImport("zon2tct", zon2tct_mod);
+
+    return compiler_mod;
+}
+
+fn addCompilerStep(b: *std.Build, options: AddCompilerModOptions) *std.Build.Step.Compile {
+    return b.addExecutable(.{
+        .name = "zon2tct",
+        .root_module = addCompilerMod(b, options),
+    });
 }
