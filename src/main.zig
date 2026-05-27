@@ -81,10 +81,7 @@ const use_debug_allocator = native_os != .wasi and switch (builtin.mode) {
 };
 
 const RootAllocator = if (use_debug_allocator) std.heap.DebugAllocator(.{
-    .thread_safe = switch (build_options.io_mode) {
-        .threaded => true,
-        .evented => false,
-    },
+    .thread_safe = true,
 }) else struct {
     pub const init: RootAllocator = .{};
     pub fn allocator(_: RootAllocator) Allocator {
