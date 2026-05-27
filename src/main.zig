@@ -12,6 +12,7 @@ const Compilation = @import("Compilation.zig");
 const zon2tct = @import("zon2tct");
 const Color = zon2tct.Color;
 const EnvVar = zon2tct.EnvVar;
+const build_options = @import("build_options");
 
 pub const std_options: std.Options = .{
     .logFn = log,
@@ -61,6 +62,7 @@ const usage =
     \\Commands:
     \\  build         Create scenario code from source
     \\  init          Create a template file in the current directory
+    \\  version       Print version number and exit
     \\  help          Print this help and exit
     \\
     \\Options:
@@ -93,6 +95,9 @@ fn mainArgs(
         return buildOutput(gpa, arena, io, args, environ_map);
     } else if (mem.eql(u8, cmd, "init")) {
         return cmdInit(arena, io, args);
+    } else if (mem.eql(u8, cmd, "version")) {
+        try Io.File.stdout().writeStreamingAll(io, build_options.version ++ "\n");
+        return;
     } else if (mem.eql(u8, cmd, "help") or mem.eql(u8, cmd, "-h") or mem.eql(u8, cmd, "--help")) {
         return printUsage(io, usage, args[0]);
     } else {
