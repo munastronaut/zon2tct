@@ -76,8 +76,8 @@ pub fn logInner(
 }
 
 const use_debug_allocator = native_os != .wasi and switch (builtin.mode) {
-    .Debug, .ReleaseSafe => false,
-    .ReleaseFast, .ReleaseSmall => true,
+    .Debug, .ReleaseSafe => true,
+    .ReleaseFast, .ReleaseSmall => false,
 };
 
 const RootAllocator = if (use_debug_allocator) std.heap.DebugAllocator(.{
