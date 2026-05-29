@@ -118,15 +118,11 @@ test generate {
     const gpa = std.testing.allocator;
 
     const path = "examples/1960.zon";
-    const src = try std.Io.Dir.readFileAllocOptions(
-        .cwd(),
-        io,
-        path,
-        gpa,
-        .limited(std.math.maxInt(u32)),
-        .of(u8),
-        0,
-    );
+    var f = std.Io.Dir.cwd().openFile(io, path, .{}) catch unreachable;
+
+    var read_buf: [1024]u8 = undefined;
+    var file_reader = f.reader(io, &read_buf);
+    const src = try zon2tct.readSourceFileToEndAlloc(gpa, &file_reader);
     defer gpa.free(src);
 
     var tree: Tree = try .parse(gpa, src);
@@ -145,12 +141,7 @@ test generate {
         eb.renderToStderr(io, .auto) catch {};
     }
 
-    //const fields = @typeInfo(Ir.Payload).@"struct".fields;
-    //inline for (fields) |field| {
-    //    for (@field(ir.payload, field.name)) |item| {
-    //        std.debug.print("{any}\n", .{item});
-    //    }
-    //}
+    try std.testing.expect(!ir.hasCompileErrors());
 }
 
 fn deinit(ig: *IrGen) void {
