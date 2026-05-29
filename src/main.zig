@@ -111,7 +111,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     if (args.len <= 1) fatal("expected command argument", .{});
 
-    var environ_map = init.environ.createMap(arena) catch |err| fatal("failed to parse environment: {t}", .{err});
+    var environ_map = init.environ.createMap(arena) catch |err| {
+        fatal("failed to parse environment: {t}", .{err});
+    };
 
     return mainArgs(gpa, arena, io, args, &environ_map);
 }
