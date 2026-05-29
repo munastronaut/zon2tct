@@ -203,10 +203,10 @@ fn buildOutput(
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
         } else switch (Compilation.classifyFileExt(arg)) {
-            .plaintext => {
-                if (src_file) |_| {
-                    fatal("too many positional arguments, only one source file is supported", .{});
-                } else src_file = arg;
+            .plaintext => if (src_file) |_| {
+                fatal("too many positional arguments, only one source file is supported", .{});
+            } else {
+                src_file = arg;
             },
             .unknown => fatal("unrecognized file extension of parameter '{s}'", .{arg}),
         }
