@@ -78,7 +78,7 @@ work() {
                 echo
                 echo "# zon2tct"
                 echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
-                echo 'set -gx PATH $PATH "$Z2T_INSTALL/"'
+                echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
             } >> "$TARGET_FILE"
             echo "restart fish or run 'source $TARGET_FILE' to start using zon2tct"
         else
@@ -86,7 +86,7 @@ work() {
                 echo
                 echo "# zon2tct"
                 echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
-                echo 'export PATH="$PATH:$Z2T_INSTALL/"'
+                echo 'export PATH="$PATH:$Z2T_INSTALL"'
             } >> "$TARGET_FILE"
             echo "run 'source $TARGET_FILE' to start using zon2tct"
         fi
@@ -96,10 +96,10 @@ work() {
         echo "please add the following lines to your shell's startup script (or execute them in your current session):"
         if [[ "$SHELL" == */fish ]]; then
             echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
-            echo 'set -gx PATH $PATH "$Z2T_INSTALL/"'
+            echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
         else
             echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
-            echo 'export PATH="$PATH:$Z2T_INSTALL/"'
+            echo 'export PATH="$PATH:$Z2T_INSTALL"'
         fi
     fi
 }
