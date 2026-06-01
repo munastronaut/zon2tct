@@ -2,10 +2,12 @@ const builtin = @import("builtin");
 const native_os = builtin.os.tag;
 
 const std = @import("std");
+const assert = std.debug.assert;
 const Io = std.Io;
 const path = Io.Dir.path;
 const mem = std.mem;
 const Allocator = mem.Allocator;
+const log = std.log;
 const process = std.process;
 const fatal = process.fatal;
 const exit = process.exit;
@@ -18,8 +20,16 @@ const EnvVar = zon2tct.EnvVar;
 const build_options = @import("build_options");
 
 pub const std_options: std.Options = .{
-    .logFn = log,
+    .logFn = logFn,
 };
+pub const std_options_cwd = if (native_os == .wasi) wasi_cwd else null;
+
+var preopens: process.Preopens = .empty;
+fn wasi_cwd() Io.Dir {
+    const cwd_fd: std.posix.fd_t = 3;
+    assert(mem.eql(u8, preopens.map.keys()[cwd_fd], "."));
+    return .{ .handle = cwd_fd };
+}
 
 var stdout_buf: [4096]u8 align(std.heap.page_size_min) = undefined;
 
@@ -37,8 +47,8 @@ const usage =
     \\
 ;
 
-pub fn log(
-    comptime level: std.log.Level,
+pub fn logFn(
+    comptime level: log.Level,
     comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
@@ -53,7 +63,7 @@ pub fn log(
 }
 
 pub fn logInner(
-    comptime level: std.log.Level,
+    comptime level: log.Level,
     comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
@@ -114,6 +124,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
     var environ_map = init.environ.createMap(arena) catch |err| {
         fatal("failed to parse environment: {t}", .{err});
     };
+
+    if (native_os == .wasi) {
+        preopens = try .init(arena);
+    }
 
     return mainArgs(gpa, arena, io, args, &environ_map);
 }
@@ -266,13 +280,13 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
         .example => {
             const tmplt = @embedFile("templates/template.zon");
             if (writeSimpleTemplateFile(io, filename, tmplt)) |_| {
-                std.log.info("created {s}", .{filename});
+                log.info("created {s}", .{filename});
             } else |err| switch (err) {
-                error.PathAlreadyExists => std.log.info(
+                error.PathAlreadyExists => log.info(
                     "preserving already existing file: '{s}'",
                     .{filename},
                 ),
-                else => std.log.err("unable to write '{s}': {t}\n", .{ filename, err }),
+                else => log.err("unable to write '{s}': {t}\n", .{ filename, err }),
             }
             return cleanExit(io);
         },
@@ -282,7 +296,7 @@ fn cmdInit(arena: Allocator, io: Io, args: []const []const u8) !void {
                 error.PathAlreadyExists => fatal("refusing to overwrite '{s}'", .{filename}),
                 else => fatal("failed to create '{s}': {t}", .{ filename, err }),
             };
-            std.log.info("created {s}", .{filename});
+            log.info("created {s}", .{filename});
             return cleanExit(io);
         },
     }
