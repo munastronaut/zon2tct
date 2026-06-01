@@ -2,8 +2,6 @@ const std = @import("std");
 
 const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 3, .patch = 0 };
 
-const IoMode = enum { threaded, evented };
-
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
