@@ -39,6 +39,7 @@ const usage =
     \\Commands:
     \\  build         Create scenario code from source
     \\  init          Create a template file in the current directory
+    \\  completion    Generate shell completion scripts
     \\  version       Print version number and exit
     \\  help          Print this help and exit
     \\
@@ -145,6 +146,8 @@ fn mainArgs(
         return buildOutput(gpa, arena, io, args, environ_map);
     } else if (mem.eql(u8, cmd, "init")) {
         return cmdInit(arena, io, args);
+    } else if (mem.eql(u8, cmd, "completion")) {
+        return cmdCompletions(io, args);
     } else if (mem.eql(u8, cmd, "version")) {
         try Io.File.stdout().writeStreamingAll(io, build_options.version ++ "\n");
         return;
@@ -310,3 +313,58 @@ fn writeSimpleTemplateFile(io: Io, filename: []const u8, str: []const u8) !void 
     try fw.interface.writeAll(str);
     try fw.interface.flush();
 }
+
+const usage_completion =
+    \\Usage: {s} completion <shell>
+    \\
+    \\Arguments:
+    \\  <shell>       Supported values: bash, fish, zsh
+    \\
+    \\Options:
+    \\  -h, --help    Print this help and exit
+    \\
+;
+
+fn cmdCompletions(io: Io, args: []const []const u8) !void {
+    var shell: ?Shell = null;
+    var args_iter: ArgsIterator = .{ .args = args[2..] };
+    while (args_iter.next()) |arg| {
+        if (mem.startsWith(u8, arg, "-")) {
+            if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
+                return printUsage(io, usage_completion, args[0]);
+            } else {
+                fatal("unrecognized parameter '{s}'", .{arg});
+            }
+        } else {
+            if (std.meta.stringToEnum(Shell, arg)) |shell_arg| {
+                if (shell) |_| {
+                    fatal("more than one shell option passed", .{});
+                } else {
+                    shell = shell_arg;
+                }
+            } else {
+                fatal("unrecognized shell option '{s}'", .{arg});
+            }
+        }
+    }
+
+    if (shell == null) fatal("expected shell option", .{});
+
+    var w = Io.File.stdout().writer(io, &stdout_buf);
+    const stdout = &w.interface;
+
+    switch (shell.?) {
+        inline else => |tag| {
+            const filename = "completions/" ++ @tagName(tag) ++ "-completion";
+            const completion = @embedFile(filename);
+            try stdout.writeAll(completion);
+            try stdout.flush();
+        },
+    }
+}
+
+const Shell = enum {
+    bash,
+    fish,
+    zsh,
+};
