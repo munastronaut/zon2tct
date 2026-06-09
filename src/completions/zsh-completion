@@ -1,0 +1,51 @@
+#compdef zon2tct
+
+_zon2tct() {
+  local context state line state_descr
+  typeset -A opt_args
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[print command-specific usage]' \
+    '1: :->command' \
+    '*:: :->args'
+
+  case $state in
+    command)
+      local -a commands
+      commands=(
+        'build:create scenario code from source'
+        'init:create a template file in the current directory'
+        'completion:generate shell completion scripts'
+        'version:print version number and exit'
+        'help:print this help and exit'
+      )
+      _describe -t commands 'command' commands
+      ;;
+    args)
+      case $words[1] in
+        build)
+          _arguments \
+            '(-h --help)'{-h,--help}'[print this help and exit]' \
+            '--name[write the output to name]:file name:_files' \
+            '*:source file:_files -g "*.(zon|txt)(-.)"'
+          ;;
+        init)
+          _arguments \
+            '(-h --help)'{-h,--help}'[print this help and exit]' \
+            '(-m --minimal)'{-m,--minimal}'[use minimal init template]' \
+            '--name[specify project name for template file]:project name:'
+          ;;
+        completion)
+          _arguments \
+            '(-h --help)'{-h,--help}'[print this help and exit]' \
+            '1:shell:(bash fish zsh)'
+          ;;
+        *)
+          _message "no more arguments"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_zon2tct "$@"

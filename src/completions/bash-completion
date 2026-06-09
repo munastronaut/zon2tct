@@ -1,0 +1,66 @@
+_zon2tct() {
+    local cur prev words cword
+    _init_completion || return
+
+    local commands="build init completion version help"
+    local opts="-h --help"
+
+    local cmd=""
+    local i
+    for ((i = 1; i < cword; i++)); do
+        if [[ ${words[i]} != -* ]]; then
+            cmd="${words[i]}"
+            break
+        fi
+    done
+
+    # subcommands and options
+    if [[ -z "$cmd" ]]; then
+        if [[ "$cur" == -* ]]; then
+            COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+        else
+            COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+        fi
+        return
+    fi
+
+    case "$cmd" in
+        build)
+            case "$prev" in
+                --name)
+                    _filedir
+                    return
+                    ;;
+            esac
+
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-h --help --name" -- "$cur") )
+            else
+                _filedir 'zon|txt'
+            fi
+            ;;
+        init)
+            case "$prev" in
+                --name)
+                    return
+                    ;;
+            esac
+
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-h --help -m --minimal --name" -- "$cur") )
+            fi
+            ;;
+        completion)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-h --help" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -W "bash fish zsh" -- "$cur") )
+            fi
+            ;;
+        *)
+            # no messages
+            ;;
+    esac
+}
+
+complete -F _zon2tct zon2tct

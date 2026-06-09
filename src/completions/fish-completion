@@ -1,0 +1,24 @@
+complete -c zon2tct -f
+
+complete -c zon2tct -s h -l help -d 'print command-specific usage'
+
+# subcommands
+complete -c zon2tct -n __fish_use_subcommand -a build -d 'create scenario code from source'
+complete -c zon2tct -n __fish_use_subcommand -a init -d 'create a template file in the current directory'
+complete -c zon2tct -n __fish_use_subcommand -a completion -d 'generate shell completion scripts'
+complete -c zon2tct -n __fish_use_subcommand -a version -d 'print version number and exit'
+complete -c zon2tct -n __fish_use_subcommand -a help -d 'print this help and exit'
+
+# build
+complete -c zon2tct -n '__fish_seen_subcommand_from build' -s h -l help -d 'print this help and exit'
+complete -c zon2tct -n '__fish_seen_subcommand_from build' -l name -r -F -d 'write the output to name'
+complete -c zon2tct -n '__fish_seen_subcommand_from build' -r -k -a '(__fish_complete_suffix .zon .txt)'
+
+# init
+complete -c zon2tct -n '__fish_seen_subcommand_from init' -s h -l help -d 'print this help and exit'
+complete -c zon2tct -n '__fish_seen_subcommand_from init' -s m -l minimal -d 'use minimal init template'
+complete -c zon2tct -n '__fish_seen_subcommand_from init' -l name -r -d 'specify project name for template file'
+
+# completion
+complete -c zon2tct -n '__fish_seen_subcommand_from completion' -s h -l help -d 'print this help and exit'
+complete -c zon2tct -n '__fish_seen_subcommand_from completion' -a 'bash fish zsh'
