@@ -375,7 +375,7 @@ fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void 
     const tree = ig.tree;
     const definitions = try ig.parseStruct(Definitions, def_node);
 
-    inline for (std.meta.fields(Definitions)) |field| {
+    inline for (@typeInfo(Definitions).@"struct".fields) |field| {
         if (@field(definitions, field.name)) |node| {
             var buf: [2]Tree.Node.Index = undefined;
             const full = tree.fullStructInit(&buf, node).?;
