@@ -147,7 +147,7 @@ fn mainArgs(
     } else if (mem.eql(u8, cmd, "init")) {
         return cmdInit(arena, io, args);
     } else if (mem.eql(u8, cmd, "completion")) {
-        return cmdCompletions(io, args);
+        return cmdCompletion(io, args);
     } else if (mem.eql(u8, cmd, "version")) {
         try Io.File.stdout().writeStreamingAll(io, build_options.version ++ "\n");
         return;
@@ -325,7 +325,7 @@ const usage_completion =
     \\
 ;
 
-fn cmdCompletions(io: Io, args: []const []const u8) !void {
+fn cmdCompletion(io: Io, args: []const []const u8) !void {
     var shell: ?Shell = null;
     var args_iter: ArgsIterator = .{ .args = args[2..] };
     while (args_iter.next()) |arg| {
@@ -352,19 +352,22 @@ fn cmdCompletions(io: Io, args: []const []const u8) !void {
 
     var w = Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &w.interface;
-
-    switch (shell.?) {
-        inline else => |tag| {
-            const filename = "completions/" ++ @tagName(tag) ++ "-completion";
-            const completion = @embedFile(filename);
-            try stdout.writeAll(completion);
-            try stdout.flush();
-        },
-    }
+    const completion = completions[@intFromEnum(shell.?)];
+    try stdout.writeAll(completion);
+    try stdout.flush();
 }
 
 const Shell = enum {
     bash,
     fish,
     zsh,
+};
+
+const completions = blk: {
+    const fields = @typeInfo(Shell).@"enum".fields;
+    var content: [fields.len][]const u8 = undefined;
+    for (fields) |field| {
+        content[field.value] = @embedFile("completions/" ++ field.name ++ "-completion");
+    }
+    break :blk content;
 };
