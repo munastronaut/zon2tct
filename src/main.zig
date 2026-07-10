@@ -364,10 +364,12 @@ const Shell = enum {
 };
 
 const completions = blk: {
-    const fields = @typeInfo(Shell).@"enum".fields;
-    var content: [fields.len][]const u8 = undefined;
-    for (fields) |field| {
-        content[field.value] = @embedFile("completions/" ++ field.name ++ "-completion");
+    const info = @typeInfo(Shell);
+    const field_names = info.@"enum".field_names;
+    const field_values = info.@"enum".field_values;
+    var content: [field_names.len][]const u8 = undefined;
+    for (field_names, field_values) |field_name, field_value| {
+        content[field_value] = @embedFile("completions/" ++ field_name ++ "-completion");
     }
     break :blk content;
 };

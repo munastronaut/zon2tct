@@ -73,16 +73,18 @@ pub fn getErrorMessage(eb: ErrorBundle, index: MessageIndex) ErrorMessage {
 
 pub fn getNotes(eb: ErrorBundle, index: MessageIndex) []const MessageIndex {
     const notes_len = eb.getErrorMessage(index).notes_len;
-    const start = @intFromEnum(index) + @typeInfo(ErrorMessage).@"struct".fields.len;
+    const start = @intFromEnum(index) + @typeInfo(ErrorMessage).@"struct".field_names.len;
     return @as([]const MessageIndex, @ptrCast(eb.extra[start..][0..notes_len]));
 }
 
 fn extraData(eb: ErrorBundle, comptime T: type, index: usize) struct { data: T, end: usize } {
-    const fields = @typeInfo(T).@"struct".fields;
+    const info = @typeInfo(T);
+    const field_names = info.@"struct".field_names;
+    const field_types = info.@"struct".field_types;
     var i: usize = index;
     var result: T = undefined;
-    inline for (fields) |field| {
-        @field(result, field.name) = switch (field.type) {
+    inline for (field_names, field_types) |field_name, field_type| {
+        @field(result, field_name) = switch (field_type) {
             u32 => eb.extra[i],
             MessageIndex => @as(MessageIndex, @enumFromInt(eb.extra[i])),
             SourceLocationIndex => @as(SourceLocationIndex, @enumFromInt(eb.extra[i])),
@@ -299,7 +301,7 @@ pub const Wip = struct {
 
     pub fn reserveNotes(wip: *Wip, notes_len: u32) !u32 {
         try wip.extra.ensureUnusedCapacity(wip.gpa, notes_len +
-            notes_len * @typeInfo(ErrorBundle.ErrorMessage).@"struct".fields.len);
+            notes_len * @typeInfo(ErrorBundle.ErrorMessage).@"struct".field_names.len);
         wip.extra.items.len += notes_len;
         return @intCast(wip.extra.items.len - notes_len);
     }
@@ -378,13 +380,13 @@ pub const Wip = struct {
 
     fn addExtra(wip: *Wip, extra: anytype) Allocator.Error!u32 {
         const gpa = wip.gpa;
-        const fields = @typeInfo(@TypeOf(extra)).@"struct".fields;
+        const fields = @typeInfo(@TypeOf(extra)).@"struct".field_names;
         try wip.extra.ensureUnusedCapacity(gpa, fields.len);
         return wip.addExtraAssumeCapacity(extra);
     }
 
     fn addExtraAssumeCapacity(wip: *Wip, extra: anytype) u32 {
-        const fields = @typeInfo(@TypeOf(extra)).@"struct".fields;
+        const fields = @typeInfo(@TypeOf(extra)).@"struct".field_names;
         const result: u32 = @intCast(wip.extra.items.len);
         wip.extra.items.len += fields.len;
         wip.setExtra(result, extra);
@@ -392,15 +394,17 @@ pub const Wip = struct {
     }
 
     fn setExtra(wip: *Wip, index: usize, extra: anytype) void {
-        const fields = @typeInfo(@TypeOf(extra)).@"struct".fields;
+        const extra_info = @typeInfo(@TypeOf(extra)).@"struct";
+        const field_names = extra_info.field_names;
+        const field_types = extra_info.field_types;
         var i = index;
-        inline for (fields) |field| {
-            wip.extra.items[i] = switch (field.type) {
-                u32 => @field(extra, field.name),
+        inline for (field_names, field_types) |field_name, field_type| {
+            wip.extra.items[i] = switch (field_type) {
+                u32 => @field(extra, field_name),
 
                 MessageIndex,
                 SourceLocationIndex,
-                => @intFromEnum(@field(extra, field.name)),
+                => @intFromEnum(@field(extra, field_name)),
 
                 else => @compileError("bad field type"),
             };

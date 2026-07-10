@@ -15,6 +15,11 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
+    const zon2tct_mod = b.addModule("zon2tct", .{
+        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
+    });
+    exe.root_module.addImport("zon2tct", zon2tct_mod);
+
     const exe_options = b.addOptions();
     exe.root_module.addOptions("build_options", exe_options);
 
@@ -35,13 +40,12 @@ pub fn build(b: *std.Build) !void {
     run_step.dependOn(&run_cmd.step);
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 
     const release_step = b.step("release", "Build the application for release targets");
 
-    const dist_path = b.getInstallPath(.prefix, "dist");
+    //const dist_path = b.getInstallPath(.prefix, "dist");
+    const dist_path = b.fmt("{f}", .{b.graph.path(.install_prefix, "dist")});
     const make_dist_cmd = if (b.graph.host.result.os.tag == .windows)
         b.addSystemCommand(&.{ "mkdir", dist_path })
     else
@@ -68,6 +72,7 @@ pub fn build(b: *std.Build) !void {
                 .ReleaseFast, .ReleaseSmall => true,
             },
         });
+        release_exe.root_module.addImport("zon2tct", zon2tct_mod);
         release_exe.root_module.addOptions("build_options", exe_options);
 
         const tgt_str = b.fmt("{t}-{t}", .{ res_tgt.result.cpu.arch, res_tgt.result.os.tag });
@@ -87,23 +92,23 @@ pub fn build(b: *std.Build) !void {
 
         if (res_tgt.result.os.tag == .windows) {
             const archive_file = b.fmt("dist/{s}.zip", .{archive_name});
-            const out_path = b.getInstallPath(.prefix, archive_file);
+            const out_path = b.fmt("{f}", .{b.graph.path(.install_prefix, archive_file)});
             compress_cmd.addArgs(&.{ "-acf", out_path, "zon2tct.exe" });
         } else {
             const archive_file = b.fmt("dist/{s}.tar.gz", .{archive_name});
-            const out_path = b.getInstallPath(.prefix, archive_file);
+            const out_path = b.fmt("{f}", .{b.graph.path(.install_prefix, archive_file)});
             compress_cmd.addArgs(&.{ "-czf", out_path, "zon2tct" });
         }
 
         compress_cmd.step.dependOn(&install_dir.step);
-        compress_cmd.setCwd(.{ .cwd_relative = b.getInstallPath(.prefix, tgt_str) });
+        compress_cmd.setCwd(.{ .cwd_relative = b.fmt("{f}", .{b.graph.path(.install_prefix, tgt_str)}) });
 
         const clean_cmd = if (b.graph.host.result.os.tag == .windows)
             b.addSystemCommand(&.{ "rmdir", "/s", "/q" })
         else
             b.addSystemCommand(&.{ "rm", "-rf" });
 
-        clean_cmd.addArg(b.getInstallPath(.prefix, tgt_str));
+        clean_cmd.addArg(b.fmt("{f}", .{b.graph.path(.install_prefix, tgt_str)}));
         clean_cmd.step.dependOn(&compress_cmd.step);
 
         release_step.dependOn(&clean_cmd.step);
@@ -123,11 +128,6 @@ fn addCompilerMod(b: *std.Build, options: AddCompilerModOptions) *std.Build.Modu
         .optimize = options.optimize,
         .strip = options.strip,
     });
-
-    const zon2tct_mod = b.addModule("zon2tct", .{
-        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
-    });
-    compiler_mod.addImport("zon2tct", zon2tct_mod);
 
     return compiler_mod;
 }
