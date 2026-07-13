@@ -345,21 +345,25 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
 
         if (ig.identAsString(ident_tok)) |name_str| {
             const raw_str = name_str.getAny(ig.string_bytes.items);
-            if (std.meta.stringToEnum(std.meta.FieldEnum(T), raw_str)) |field_enum| {
-                switch (field_enum) {
-                    inline else => |tag| {
-                        const field_name = @tagName(tag);
-                        if (@field(result, field_name)) |prev_node| {
-                            const prev_tok = ig.tree.firstToken(prev_node) - 2;
-                            try ig.addErrorTokNotes(ident_tok, "duplicate struct field name", .{}, &.{
-                                try ig.errNoteTok(prev_tok, "duplicate name here", .{}),
-                            });
-                        } else {
-                            @field(result, field_name) = val_node;
-                        }
-                    },
+            const info = @typeInfo(T).@"struct";
+            const field_names = info.field_names;
+
+            var found = false;
+            inline for (field_names) |field_name| {
+                if (mem.eql(u8, field_name, raw_str)) {
+                    found = true;
+                    if (@field(result, field_name)) |prev_node| {
+                        const prev_tok = ig.tree.firstToken(prev_node) - 2;
+                        try ig.addErrorTokNotes(ident_tok, "duplicate struct field name", .{}, &.{
+                            try ig.errNoteTok(prev_tok, "duplicate name here", .{}),
+                        });
+                    } else {
+                        @field(result, field_name) = val_node;
+                    }
                 }
-            } else {
+            }
+
+            if (!found) {
                 try ig.addErrorTok(ident_tok, "unknown field '{s}'", .{raw_str});
             }
         } else |err| switch (err) {
