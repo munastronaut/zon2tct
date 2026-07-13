@@ -364,9 +364,9 @@ const Shell = enum {
 };
 
 const completions = blk: {
-    const info = @typeInfo(Shell);
-    const field_names = info.@"enum".field_names;
-    const field_values = info.@"enum".field_values;
+    const info = @typeInfo(Shell).@"enum";
+    const field_names = info.field_names;
+    const field_values = info.field_values;
     var content: [field_names.len][]const u8 = undefined;
     for (field_names, field_values) |field_name, field_value| {
         content[field_value] = @embedFile("completions/" ++ field_name ++ "-completion");
