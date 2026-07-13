@@ -345,25 +345,23 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
 
         if (ig.identAsString(ident_tok)) |name_str| {
             const raw_str = name_str.getAny(ig.string_bytes.items);
-            const info = @typeInfo(T).@"struct";
-            const field_names = info.field_names;
-
-            var found = false;
-            inline for (field_names) |field_name| {
-                if (mem.eql(u8, field_name, raw_str)) {
-                    found = true;
-                    if (@field(result, field_name)) |prev_node| {
-                        const prev_tok = ig.tree.firstToken(prev_node) - 2;
-                        try ig.addErrorTokNotes(ident_tok, "duplicate struct field name", .{}, &.{
-                            try ig.errNoteTok(prev_tok, "duplicate name here", .{}),
-                        });
-                    } else {
-                        @field(result, field_name) = val_node;
+            const FieldEnum = std.meta.FieldEnum(T);
+            if (std.meta.stringToEnum(FieldEnum, raw_str)) |field_enum| {
+                const field_info = @typeInfo(FieldEnum).@"enum";
+                inline for (field_info.field_names) |enum_field_name| {
+                    if (field_enum == @field(FieldEnum, enum_field_name)) {
+                        const field_name = enum_field_name;
+                        if (@field(result, field_name)) |prev_node| {
+                            const prev_tok = ig.tree.firstToken(prev_node) - 2;
+                            try ig.addErrorTokNotes(ident_tok, "duplicate struct field name", .{}, &.{
+                                try ig.errNoteTok(prev_tok, "duplicate name here", .{}),
+                            });
+                        } else {
+                            @field(result, field_name) = val_node;
+                        }
                     }
                 }
-            }
-
-            if (!found) {
+            } else {
                 try ig.addErrorTok(ident_tok, "unknown field '{s}'", .{raw_str});
             }
         } else |err| switch (err) {
