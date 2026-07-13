@@ -44,12 +44,19 @@ pub fn build(b: *std.Build) !void {
 
     const release_step = b.step("release", "Build the application for release targets");
 
-    //const dist_path = b.getInstallPath(.prefix, "dist");
-    const dist_path = b.fmt("{f}", .{b.graph.path(.install_prefix, "dist")});
-    const make_dist_cmd = if (b.graph.host.result.os.tag == .windows)
-        b.addSystemCommand(&.{ "mkdir", dist_path })
-    else
-        b.addSystemCommand(&.{ "mkdir", "-p", dist_path });
+    const dist_path = b.graph.path(.install_prefix, "dist");
+    //const make_dist_cmd = if (b.graph.host.result.os.tag == .windows)
+    //    b.addSystemCommand(&.{ "mkdir", dist_path })
+    //else
+    //    b.addSystemCommand(&.{ "mkdir", "-p", dist_path });
+    const make_dist_cmd = dist: {
+        const cmd = b.addSystemCommand(&.{"mkdir"});
+        if (b.graph.host.result.os.tag != .windows) {
+            cmd.addArg("-p");
+        }
+        cmd.addDirectoryArg(dist_path);
+        break :dist cmd;
+    };
 
     const tgts = [_]std.Target.Query{
         .{ .cpu_arch = .x86_64, .os_tag = .linux },
@@ -83,35 +90,25 @@ pub fn build(b: *std.Build) !void {
             zon2tct_version.patch,
         });
 
-        const install_dir = b.addInstallArtifact(release_exe, .{
-            .dest_dir = .{ .override = .{ .custom = tgt_str } },
-        });
+        const exe_file = release_exe.getEmittedBin();
 
         const compress_cmd = b.addSystemCommand(&.{"tar"});
         compress_cmd.step.dependOn(&make_dist_cmd.step);
 
-        if (res_tgt.result.os.tag == .windows) {
-            const archive_file = b.fmt("dist/{s}.zip", .{archive_name});
-            const out_path = b.fmt("{f}", .{b.graph.path(.install_prefix, archive_file)});
-            compress_cmd.addArgs(&.{ "-acf", out_path, "zon2tct.exe" });
-        } else {
-            const archive_file = b.fmt("dist/{s}.tar.gz", .{archive_name});
-            const out_path = b.fmt("{f}", .{b.graph.path(.install_prefix, archive_file)});
-            compress_cmd.addArgs(&.{ "-czf", out_path, "zon2tct" });
-        }
+        const archive_extension = if (res_tgt.result.os.tag == .windows) ".zip" else ".tar.gz";
+        const archive_file = b.fmt("{s}{s}", .{ archive_name, archive_extension });
+        const exe_filename = if (res_tgt.result.os.tag == .windows) "zon2tct.exe" else "zon2tct";
+        const out_path = dist_path.path(b, archive_file);
 
-        compress_cmd.step.dependOn(&install_dir.step);
-        compress_cmd.setCwd(.{ .cwd_relative = b.fmt("{f}", .{b.graph.path(.install_prefix, tgt_str)}) });
+        const flags = if (res_tgt.result.os.tag == .windows) "-acf" else "-czf";
+        compress_cmd.addArg(flags);
+        compress_cmd.addFileArg(out_path);
+        compress_cmd.addPrefixedFileArg("-C", exe_file.dirname());
+        compress_cmd.addArg(exe_filename);
 
-        const clean_cmd = if (b.graph.host.result.os.tag == .windows)
-            b.addSystemCommand(&.{ "rmdir", "/s", "/q" })
-        else
-            b.addSystemCommand(&.{ "rm", "-rf" });
+        compress_cmd.step.dependOn(&release_exe.step);
 
-        clean_cmd.addArg(b.fmt("{f}", .{b.graph.path(.install_prefix, tgt_str)}));
-        clean_cmd.step.dependOn(&compress_cmd.step);
-
-        release_step.dependOn(&clean_cmd.step);
+        release_step.dependOn(&compress_cmd.step);
     }
 }
 
