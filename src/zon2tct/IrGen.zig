@@ -340,14 +340,15 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
     var buf: [2]Tree.Node.Index = undefined;
     const full = ig.tree.fullStructInit(&buf, node).?;
 
+    const FieldEnum = std.meta.FieldEnum(T);
+    const field_info = @typeInfo(FieldEnum).@"enum";
+
     for (full.tree.fields) |val_node| {
         const ident_tok = ig.tree.firstToken(val_node) - 2;
 
         if (ig.identAsString(ident_tok)) |name_str| {
             const raw_str = name_str.getAny(ig.string_bytes.items);
-            const FieldEnum = std.meta.FieldEnum(T);
             if (std.meta.stringToEnum(FieldEnum, raw_str)) |field_enum| {
-                const field_info = @typeInfo(FieldEnum).@"enum";
                 inline for (field_info.field_names) |enum_field_name| {
                     if (field_enum == @field(FieldEnum, enum_field_name)) {
                         const field_name = enum_field_name;
