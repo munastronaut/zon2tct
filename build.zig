@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 3, .patch = 0 };
+const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 0 };
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -45,10 +45,6 @@ pub fn build(b: *std.Build) !void {
     const release_step = b.step("release", "Build the application for release targets");
 
     const dist_path = b.graph.path(.install_prefix, "dist");
-    //const make_dist_cmd = if (b.graph.host.result.os.tag == .windows)
-    //    b.addSystemCommand(&.{ "mkdir", dist_path })
-    //else
-    //    b.addSystemCommand(&.{ "mkdir", "-p", dist_path });
     const make_dist_cmd = dist: {
         const cmd = b.addSystemCommand(&.{"mkdir"});
         if (b.graph.host.result.os.tag != .windows) {
