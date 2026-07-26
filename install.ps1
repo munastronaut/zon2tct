@@ -17,12 +17,12 @@ function Install-Latest {
     if ($LASTEXITCODE -ne 0) {
         Write-Output "install failed - could not download $URL"
         Write-Output "the command 'curl.exe $URL -o $ZipPath' exited with code ${LASTEXITCODE}`n"
-        exit 1
+        return
     }
     if (!(Test-Path $ZipPath)) {
         Write-Output "install failed - could not download $URL"
         Write-Output "the file '$ZipPath' does not exist. did an antivirus delete it?`n"
-        exit 1
+        return
     }
     try {
         $lastProgressPreference = $global:ProgressPreference
@@ -36,9 +36,9 @@ function Install-Latest {
         }
     }
     catch {
-        Write-Output "Install Failed - could not unzip $ZipPath"
+        Write-Output "install failed - could not unzip $ZipPath"
         Write-Error $_
-        exit 1
+        return
     }
     Remove-Item "$ZipPath" -Force -ErrorAction SilentlyContinue
 
@@ -46,12 +46,12 @@ function Install-Latest {
     if ($LASTEXITCODE -eq 1073741795) {
         # STATUS_ILLEGAL_INSTRUCTION
         Write-Output "install failed - zon2tct.exe is not compatible with your CPU`n"
-        exit 1
+        return
     }
     if ($LASTEXITCODE -ne 0) {
         Write-Output "install failed - could not verify zon2tct.exe"
         Write-Output "the command '${Z2TRoot}\zon2tct.exe' exited with code ${LASTEXITCODE}`n"
-        exit 1
+        return
     }
 
     $User = [System.EnvironmentVariableTarget]::User
@@ -77,12 +77,16 @@ function Install-Latest {
     Write-Output "restart your terminal or editor to start using zon2tct"
 }
 
-$PROCESSOR_ARCH = $env:PROCESSOR_ARCHITECTURE.ToLower()
+$PROCESSOR_ARCH = switch ($env:PROCESSOR_ARCHITECTURE.ToLower()) {
+    "amd64" { "x86_64" }
+    "arm64" { "aarch64" }
+    default { $env:PROCESSOR_ARCHITECTURE.ToLower() } 
+}
 
 if ($PROCESSOR_ARCH -eq "x86") {
     Write-Output "install failed - zon2tct requires a 64-bit environment"
     Write-Output "please ensure that you are running the 64-bit version of PowerShell or that your system is 64-bit`n"
-    exit 1
+    return
 }
 
 function Actual-Install {
