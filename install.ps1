@@ -32,7 +32,7 @@ function Install-Latest {
         Unblock-File "${Z2TRoot}\zon2tct.exe" -ErrorAction SilentlyContinue
         $global:ProgressPreference = $lastProgressPreference
         if (!(Test-Path "${Z2TRoot}\zon2tct.exe")) {
-            throw "the file '${Z2TRoot}\zon2tct.exe' does not exist`nlikely cause: Windows Defender quarantined it`nfix: Add an exclusion for '$Z2TRoot' in Windows Security > Virus & threat protection > Exclusions, then re-run the installer`n"
+            throw "the file '${Z2TRoot}\zon2tct.exe' does not exist`nlikely cause: Windows Defender quarantined it`nfix: add an exclusion for '$Z2TRoot' in Windows Security > Virus & threat protection > Exclusions, then re-run the installer`n"
         }
     }
     catch {
@@ -58,7 +58,7 @@ function Install-Latest {
     $Path = [System.Environment]::GetEnvironmentVariable('Path', $User) -split ';'
     $Z2TInstall = 'Z2T_INSTALL'
 
-    $Z2TInstallValue = [System.Environment]::GetEnvironmentVariable($ZVMInstall, [System.EnvironmentVariableTarget]::User)
+    $Z2TInstallValue = [System.Environment]::GetEnvironmentVariable($Z2TInstall, [System.EnvironmentVariableTarget]::User)
 
     if ($null -eq $Z2TInstallValue) {
         [System.Environment]::SetEnvironmentVariable($Z2TInstall, $Z2TRoot, [System.EnvironmentVariableTarget]::User)
@@ -93,13 +93,12 @@ function Actual-Install {
                                   }
 
     $Assets = $Releases.assets |
-        Where-Object {$_.name -like "*$PROCESSOR_ARCH*" -and $_.name -like "*windows*"}
+        Where-Object {$_.name -like "*$PROCESSOR_ARCH*" -and $_.name -like "*windows*"} |
         Select-Object -ExpandProperty name
 
     $Asset = $Assets | Select-Object -Last 2 | Select-Object -First 1
-    $AssetName = $Asset.name
 
-    Install-Latest $AssetName
+    Install-Latest $Asset
 }
 
 Actual-Install
