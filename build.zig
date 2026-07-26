@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 const Build = std.Build;
 
-const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 0 };
+const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 1 };
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
