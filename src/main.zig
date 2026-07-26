@@ -133,6 +133,16 @@ pub fn main(init: std.process.Init.Minimal) !void {
     return mainArgs(gpa, arena, io, args, &environ_map);
 }
 
+const Cmd = enum {
+    build,
+    init,
+    completion,
+    version,
+    help,
+    @"-h",
+    @"--help",
+};
+
 fn mainArgs(
     gpa: Allocator,
     arena: Allocator,
@@ -142,19 +152,14 @@ fn mainArgs(
 ) !void {
     const cmd = args[1];
 
-    if (mem.eql(u8, cmd, "build")) {
-        return buildOutput(gpa, arena, io, args, environ_map);
-    } else if (mem.eql(u8, cmd, "init")) {
-        return cmdInit(arena, io, args);
-    } else if (mem.eql(u8, cmd, "completion")) {
-        return cmdCompletion(io, args);
-    } else if (mem.eql(u8, cmd, "version")) {
-        try Io.File.stdout().writeStreamingAll(io, build_options.version ++ "\n");
-        return;
-    } else if (mem.eql(u8, cmd, "help") or mem.eql(u8, cmd, "-h") or mem.eql(u8, cmd, "--help")) {
-        return printUsage(io, usage, args[0]);
-    } else {
-        fatal("unrecognized command: '{s}'", .{cmd});
+    switch (std.meta.stringToEnum(Cmd, cmd) orelse {
+        fatal("unrecognized command: '{s}'", cmd);
+    }) {
+        .build => return buildOutput(gpa, arena, io, args, environ_map),
+        .init => return cmdInit(arena, io, args),
+        .completion => return cmdCompletion(io, args),
+        .version => return Io.File.stdout().writeStreamingAll(io, build_options.version ++ "\n"),
+        .help, .@"-h", .@"--help" => return printUsage(io, usage, args[0]),
     }
 }
 
@@ -352,7 +357,7 @@ fn cmdCompletion(io: Io, args: []const []const u8) !void {
 
     var w = Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &w.interface;
-    const completion = completions[@intFromEnum(shell.?)];
+    const completion = completions[@backingInt(shell.?)];
     try stdout.writeAll(completion);
     try stdout.flush();
 }
