@@ -36,28 +36,32 @@ pub const Token = struct {
                 .number_literal,
                 => null,
 
-                .equal => "=",
-                .period => ".",
-                .plus => "+",
-                .minus => "-",
-                .comma => ",",
+                // zig fmt: off
+                .equal   => "=",
+                .period  => ".",
+                .plus    => "+",
+                .minus   => "-",
+                .comma   => ",",
                 .l_paren => "(",
                 .r_paren => ")",
                 .l_brace => "{",
                 .r_brace => "}",
+                // zig fmt: on
             };
         }
 
         pub fn symbol(id: Id) []const u8 {
             return id.lexeme() orelse switch (id) {
-                .invalid => "invalid token",
-                .identifier => "an identifier",
-                .string_literal => "a string literal",
+                // zig fmt: off
+                .invalid                       => "invalid token",
+                .identifier                    => "an identifier",
+                .string_literal                => "a string literal",
                 .multiline_string_literal_line => "a multiline string literal",
-                .char_literal => "a character literal",
-                .eof => "EOF",
-                .number_literal => "a number literal",
-                else => unreachable,
+                .char_literal                  => "a character literal",
+                .eof                           => "EOF",
+                .number_literal                => "a number literal",
+                else                           => unreachable,
+                // zig fmt: on
             };
         }
     };
