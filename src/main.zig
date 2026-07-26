@@ -153,7 +153,7 @@ fn mainArgs(
     const cmd = args[1];
 
     switch (std.meta.stringToEnum(Cmd, cmd) orelse {
-        fatal("unrecognized command: '{s}'", cmd);
+        fatal("unrecognized command: '{s}'", .{cmd});
     }) {
         .build => return buildOutput(gpa, arena, io, args, environ_map),
         .init => return cmdInit(arena, io, args),
