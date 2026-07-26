@@ -253,13 +253,13 @@ fn expectFieldInit(p: *Parse) Error!Node.Index {
 fn listToSpan(p: *Parse, list: []const Node.Index) Allocator.Error!Node.SubRange {
     try p.extra_data.appendSlice(p.gpa, @ptrCast(list));
     return .{
-        .start = @enumFromInt(p.extra_data.items.len - list.len),
-        .end = @enumFromInt(p.extra_data.items.len),
+        .start = @fromBackingInt(@intCast(p.extra_data.items.len - list.len)),
+        .end = @fromBackingInt(@intCast(p.extra_data.items.len)),
     };
 }
 
 fn addNode(p: *Parse, elem: Tree.Node) Allocator.Error!Node.Index {
-    const res: Node.Index = @enumFromInt(p.nodes.len);
+    const res: Node.Index = @fromBackingInt(@intCast(p.nodes.len));
     try p.nodes.append(p.gpa, elem);
     return res;
 }

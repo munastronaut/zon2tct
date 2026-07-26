@@ -290,11 +290,11 @@ fn strLitAsString(ig: *IrGen, str_node: Tree.Node.Index) (Allocator.Error || err
     );
     if (gop.found_existing) {
         string_bytes.shrinkRetainingCapacity(str_idx);
-        return .{ .nts = @enumFromInt(gop.key_ptr.*) };
+        return .{ .nts = @fromBackingInt(gop.key_ptr.*) };
     }
     gop.key_ptr.* = str_idx;
     try string_bytes.append(gpa, 0);
-    return .{ .nts = @enumFromInt(gop.key_ptr.*) };
+    return .{ .nts = @fromBackingInt(gop.key_ptr.*) };
 }
 
 fn identAsString(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || error{BadString})!Ir.NullTerminatedString {
@@ -310,11 +310,11 @@ fn identAsString(ig: *IrGen, ident_tok: Tree.TokenIndex) (Allocator.Error || err
     );
     if (gop.found_existing) {
         string_bytes.shrinkRetainingCapacity(str_idx);
-        return @enumFromInt(gop.key_ptr.*);
+        return @fromBackingInt(gop.key_ptr.*);
     }
     gop.key_ptr.* = str_idx;
     try string_bytes.append(gpa, 0);
-    return @enumFromInt(str_idx);
+    return @fromBackingInt(str_idx);
 }
 
 fn lowerStrLitError(
@@ -398,7 +398,7 @@ fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void 
 
                 if (ig.identAsString(ident_tok)) |name_str| {
                     const value = try ig.resolvePk(val_node, table) orelse continue;
-                    const gop = try table.getOrPutContext(ig.gpa, @intFromEnum(name_str), StringIndexContext{ .bytes = &ig.string_bytes });
+                    const gop = try table.getOrPutContext(ig.gpa, @backingInt(name_str), StringIndexContext{ .bytes = &ig.string_bytes });
                     if (gop.found_existing) {
                         const raw_str = name_str.getAny(ig.string_bytes.items);
                         try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
@@ -426,7 +426,7 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
             error.InvalidCharacter => try ig.addErrorTok(tok, "invalid character in integer pk", .{}),
         },
         .enum_literal => if (ig.identAsString(tok)) |idx| {
-            if (table.getAdapted(@intFromEnum(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
+            if (table.getAdapted(@backingInt(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
                 return val;
             } else {
                 const ident = idx.getAny(ig.string_bytes.items);
@@ -882,9 +882,9 @@ fn errNoteNode(
     const msg_idx: u32 = @intCast(ig.string_bytes.items.len);
     try ig.string_bytes.print(ig.gpa, fmt ++ "\x00", args);
     return .{
-        .msg = @enumFromInt(msg_idx),
+        .msg = @fromBackingInt(msg_idx),
         .token = .none,
-        .node_or_offset = @intFromEnum(node),
+        .node_or_offset = @backingInt(node),
     };
 }
 
@@ -897,7 +897,7 @@ fn errNoteTok(
     const msg_idx: u32 = @intCast(ig.string_bytes.items.len);
     try ig.string_bytes.print(ig.gpa, fmt ++ "\x00", args);
     return .{
-        .msg = @enumFromInt(msg_idx),
+        .msg = @fromBackingInt(msg_idx),
         .token = .fromToken(tok),
         .node_or_offset = 0,
     };
@@ -909,7 +909,7 @@ fn addErrorNode(
     comptime fmt: []const u8,
     args: anytype,
 ) Allocator.Error!void {
-    return ig.addErrorInner(.none, @intFromEnum(node), fmt, args, &.{});
+    return ig.addErrorInner(.none, @backingInt(node), fmt, args, &.{});
 }
 
 fn addErrorTok(
@@ -938,7 +938,7 @@ fn addErrorNodeNotes(
     args: anytype,
     notes: []const Ir.CompileError.Note,
 ) Allocator.Error!void {
-    return ig.addErrorInner(.none, @intFromEnum(node), fmt, args, notes);
+    return ig.addErrorInner(.none, @backingInt(node), fmt, args, notes);
 }
 
 fn addErrorTokOff(
@@ -979,7 +979,7 @@ fn addErrorInner(
     try ig.string_bytes.print(gpa, fmt ++ "\x00", args);
 
     try ig.compile_errors.append(gpa, .{
-        .msg = @enumFromInt(msg_idx),
+        .msg = @fromBackingInt(msg_idx),
         .token = token,
         .node_or_offset = node_or_offset,
         .first_note = first_note,
@@ -1038,11 +1038,11 @@ fn suggest(ig: *IrGen, str: []const u8, table: *const SymbolTable) Ir.NullTermin
     var it = table.keyIterator();
     while (it.next()) |key_ptr| {
         const key = key_ptr.*;
-        const raw: Ir.NullTerminatedString = @enumFromInt(key);
+        const raw: Ir.NullTerminatedString = @fromBackingInt(key);
         const dist = lev(gpa, str, raw.getAny(ig.string_bytes.items)) catch continue;
         if (dist < min_dist) {
             min_dist = dist;
-            nearest_match = @enumFromInt(key);
+            nearest_match = @fromBackingInt(key);
         }
     }
 

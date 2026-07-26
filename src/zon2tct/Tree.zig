@@ -33,15 +33,15 @@ pub const OptionalTokenIndex = enum(u32) {
     _,
 
     pub fn unwrap(oti: OptionalTokenIndex) ?TokenIndex {
-        return if (oti == .none) null else @intFromEnum(oti);
+        return if (oti == .none) null else @backingInt(oti);
     }
 
     pub fn fromToken(ti: TokenIndex) OptionalTokenIndex {
-        return @enumFromInt(ti);
+        return @fromBackingInt(ti);
     }
 
     pub fn fromOptional(oti: ?TokenIndex) OptionalTokenIndex {
-        return if (oti) |ti| @enumFromInt(ti) else .none;
+        return if (oti) |ti| @fromBackingInt(ti) else .none;
     }
 };
 
@@ -59,7 +59,7 @@ pub const Node = struct {
         _,
 
         pub fn toOptional(i: Index) OptionalIndex {
-            const res: OptionalIndex = @enumFromInt(@intFromEnum(i));
+            const res: OptionalIndex = @fromBackingInt(@backingInt(i));
             assert(res != .none);
             return res;
         }
@@ -71,7 +71,7 @@ pub const Node = struct {
         _,
 
         pub fn unwrap(oi: OptionalIndex) ?Index {
-            return if (oi == .none) null else @enumFromInt(@intFromEnum(oi));
+            return if (oi == .none) null else @fromBackingInt(@backingInt(oi));
         }
 
         pub fn fromOptional(oi: ?Index) OptionalIndex {
@@ -144,15 +144,15 @@ pub fn tokenStart(tree: *const Tree, tok_idx: TokenIndex) ByteOffset {
 }
 
 pub fn nodeId(tree: *const Tree, node: Node.Index) Node.Id {
-    return tree.nodes.items(.id)[@intFromEnum(node)];
+    return tree.nodes.items(.id)[@backingInt(node)];
 }
 
 pub fn nodeMainToken(tree: *const Tree, node: Node.Index) TokenIndex {
-    return tree.nodes.items(.main_tok)[@intFromEnum(node)];
+    return tree.nodes.items(.main_tok)[@backingInt(node)];
 }
 
 pub fn nodeData(tree: *const Tree, node: Node.Index) Node.Data {
-    return tree.nodes.items(.data)[@intFromEnum(node)];
+    return tree.nodes.items(.data)[@backingInt(node)];
 }
 
 pub fn deinit(tree: *Tree, gpa: Allocator) void {
@@ -274,7 +274,7 @@ pub fn tokenSlice(tree: Tree, tok_idx: TokenIndex) []const u8 {
 }
 
 pub fn extraDataSlice(tree: Tree, range: Node.SubRange, comptime T: type) []const T {
-    return @ptrCast(tree.extra_data[@intFromEnum(range.start)..@intFromEnum(range.end)]);
+    return @ptrCast(tree.extra_data[@backingInt(range.start)..@backingInt(range.end)]);
 }
 
 fn loadOptionalNodesIntoBuffer(comptime size: usize, buf: *[size]Node.Index, items: [size]Node.OptionalIndex) []Node.Index {
@@ -285,7 +285,7 @@ fn loadOptionalNodesIntoBuffer(comptime size: usize, buf: *[size]Node.Index, ite
 }
 
 pub fn rootDecls(tree: Tree) []const Node.Index {
-    return (&tree.nodes.items(.data)[@intFromEnum(Node.Index.root)].node)[0..1];
+    return (&tree.nodes.items(.data)[@backingInt(Node.Index.root)].node)[0..1];
 }
 
 pub fn renderError(tree: Tree, parse_error: Error, w: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -367,14 +367,14 @@ pub fn lastToken(tree: Tree, node: Node.Index) TokenIndex {
             const range = tree.nodeData(n).extra_range;
             assert(range.start != range.end);
             end_offset += 1;
-            n = @enumFromInt(tree.extra_data[@intFromEnum(range.end) - 1]);
+            n = @fromBackingInt(tree.extra_data[@backingInt(range.end) - 1]);
         },
 
         .array_init_dot_comma, .struct_init_dot_comma => {
             const range = tree.nodeData(n).extra_range;
             assert(range.start != range.end);
             end_offset += 2;
-            n = @enumFromInt(tree.extra_data[@intFromEnum(range.end) - 1]);
+            n = @fromBackingInt(tree.extra_data[@backingInt(range.end) - 1]);
         },
 
         .array_init_dot_two, .struct_init_dot_two => {

@@ -169,8 +169,8 @@ pub const NullTerminatedString = enum(u32) {
         return nts.getAny(ir.string_bytes);
     }
     pub fn getAny(nts: NullTerminatedString, string_bytes: []u8) [:0]const u8 {
-        const idx = std.mem.findScalar(u8, string_bytes[@intFromEnum(nts)..], 0).?;
-        return string_bytes[@intFromEnum(nts)..][0..idx :0];
+        const idx = std.mem.findScalar(u8, string_bytes[@backingInt(nts)..], 0).?;
+        return string_bytes[@backingInt(nts)..][0..idx :0];
     }
 };
 

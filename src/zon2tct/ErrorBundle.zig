@@ -68,12 +68,12 @@ pub fn getMessages(eb: ErrorBundle) []const MessageIndex {
 }
 
 pub fn getErrorMessage(eb: ErrorBundle, index: MessageIndex) ErrorMessage {
-    return eb.extraData(ErrorMessage, @intFromEnum(index)).data;
+    return eb.extraData(ErrorMessage, @backingInt(index)).data;
 }
 
 pub fn getNotes(eb: ErrorBundle, index: MessageIndex) []const MessageIndex {
     const notes_len = eb.getErrorMessage(index).notes_len;
-    const start = @intFromEnum(index) + @typeInfo(ErrorMessage).@"struct".field_names.len;
+    const start = @backingInt(index) + @typeInfo(ErrorMessage).@"struct".field_names.len;
     return @as([]const MessageIndex, @ptrCast(eb.extra[start..][0..notes_len]));
 }
 
@@ -86,8 +86,8 @@ fn extraData(eb: ErrorBundle, comptime T: type, index: usize) struct { data: T, 
     inline for (field_names, field_types) |field_name, field_type| {
         @field(result, field_name) = switch (field_type) {
             u32 => eb.extra[i],
-            MessageIndex => @as(MessageIndex, @enumFromInt(eb.extra[i])),
-            SourceLocationIndex => @as(SourceLocationIndex, @enumFromInt(eb.extra[i])),
+            MessageIndex => @as(MessageIndex, @fromBackingInt(eb.extra[i])),
+            SourceLocationIndex => @as(SourceLocationIndex, @fromBackingInt(eb.extra[i])),
             else => @compileError("bad field type"),
         };
         i += 1;
@@ -132,7 +132,7 @@ fn renderErrorMessage(
     const w = t.writer;
     const err_msg = eb.getErrorMessage(err_msg_idx);
     if (err_msg.src_loc != .none) {
-        const src = eb.extraData(SourceLocation, @intFromEnum(err_msg.src_loc));
+        const src = eb.extraData(SourceLocation, @backingInt(err_msg.src_loc));
         var prefix: Writer.Discarding = .init(&.{});
         var pw = prefix.writer;
         try w.splatByteAll(' ', indent);
@@ -288,15 +288,15 @@ pub const Wip = struct {
     }
 
     pub fn addErrorMessage(wip: *Wip, em: ErrorMessage) Allocator.Error!MessageIndex {
-        return @enumFromInt(try wip.addExtra(em));
+        return @fromBackingInt(try wip.addExtra(em));
     }
 
     pub fn addErrorMessageAssumeCapacity(wip: *Wip, em: ErrorMessage) MessageIndex {
-        return @enumFromInt(wip.addExtraAssumeCapacity(em));
+        return @fromBackingInt(wip.addExtraAssumeCapacity(em));
     }
 
     pub fn addSourceLocation(wip: *Wip, sl: SourceLocation) Allocator.Error!SourceLocationIndex {
-        return @enumFromInt(try wip.addExtra(sl));
+        return @fromBackingInt(try wip.addExtra(sl));
     }
 
     pub fn reserveNotes(wip: *Wip, notes_len: u32) !u32 {
@@ -323,7 +323,7 @@ pub const Wip = struct {
                     const end = tok_start + @as(u32, @intCast(tree.tokenSlice(tok).len));
                     break :span .{ .start = start, .end = end, .main = start };
                 } else {
-                    break :span tree.nodeToSpan(@enumFromInt(err.node_or_offset));
+                    break :span tree.nodeToSpan(@fromBackingInt(err.node_or_offset));
                 }
             };
             const err_loc = zon2tct.findLineColumn(src, err_span.main);
@@ -352,12 +352,12 @@ pub const Wip = struct {
                         const end = tok_start + @as(u32, @intCast(tree.tokenSlice(tok).len));
                         break :span .{ .start = start, .end = end, .main = start };
                     } else {
-                        break :span tree.nodeToSpan(@enumFromInt(note.node_or_offset));
+                        break :span tree.nodeToSpan(@fromBackingInt(note.node_or_offset));
                     }
                 };
                 const note_loc = zon2tct.findLineColumn(src, note_span.main);
 
-                const note_idx = @intFromEnum(try eb.addErrorMessage(.{
+                const note_idx = @backingInt(try eb.addErrorMessage(.{
                     .msg = try eb.addString(note.msg.get(ir)),
                     .src_loc = try eb.addSourceLocation(.{
                         .src_path = try eb.addString(src_path),
@@ -404,7 +404,7 @@ pub const Wip = struct {
 
                 MessageIndex,
                 SourceLocationIndex,
-                => @intFromEnum(@field(extra, field_name)),
+                => @backingInt(@field(extra, field_name)),
 
                 else => @compileError("bad field type"),
             };
