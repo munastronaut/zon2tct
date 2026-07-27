@@ -51,10 +51,13 @@ pub fn main(init: std.process.Init) !void {
 
     const original_name = Io.Dir.path.basename(input_path);
 
-    try switch (archive_kind) {
-        .tarball => archiveTar(&fr, &fw, original_name),
-        .zip => archiveZip(arena, &fr, &fw, original_name, .now(io, .real)),
-    };
+    switch (archive_kind) {
+        .tarball => try archiveTar(&fr, &fw, original_name),
+        .zip => archiveZip(arena, &fr, &fw, original_name, .now(io, .real)) catch |err| switch (err) {
+            error.WriteFailed => return fw.err orelse err,
+            else => |e| return e,
+        },
+    }
 
     try fw.flush();
     try output_file.replace(io);
@@ -136,7 +139,9 @@ pub fn archiveZip(
 
     var read_buf: [4096]u8 = undefined;
     while (true) {
-        const bytes_read = try in.interface.readSliceShort(&read_buf);
+        const bytes_read = in.interface.readSliceShort(&read_buf) catch |err| switch (err) {
+            error.ReadFailed => return in.err.?,
+        };
         if (bytes_read == 0) break;
 
         const slice = read_buf[0..bytes_read];
