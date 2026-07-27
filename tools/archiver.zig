@@ -76,6 +76,22 @@ const dos = struct {
         minutes: u6,
         /// 0-23
         hours: u5,
+
+        pub fn fromTimestamp(timestamp: Io.Timestamp) Time {
+            const raw_s = timestamp.toSeconds();
+            const total_seconds: u17 = @intCast(@mod(raw_s, 86400));
+            const day_s: std.time.epoch.DaySeconds = .{ .secs = total_seconds };
+
+            const seconds = day_s.getSecondsIntoMinute();
+            const minutes = day_s.getMinutesIntoHour();
+            const hours = day_s.getHoursIntoDay();
+
+            return .{
+                .seconds = @intCast(@divTrunc(seconds, 2)),
+                .minutes = minutes,
+                .hours = hours,
+            };
+        }
     };
 
     const Date = packed struct(u16) {
@@ -85,6 +101,21 @@ const dos = struct {
         month: u4,
         /// Offset from 1980, 1980-2107
         year: u7,
+
+        pub fn fromTimestamp(timestamp: Io.Timestamp) Date {
+            const raw_s = timestamp.toSeconds();
+            const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(raw_s) };
+
+            const epoch_day = epoch_s.getEpochDay();
+            const year_and_day = epoch_day.calculateYearDay();
+            const month_and_day = year_and_day.calculateMonthDay();
+
+            return .{
+                .day = month_and_day.day_index + 1,
+                .month = month_and_day.month.numeric(),
+                .year = @intCast(year_and_day.year - 1980),
+            };
+        }
     };
 };
 
@@ -95,31 +126,8 @@ pub fn archiveZip(
     original_name: []const u8,
     timestamp: Io.Timestamp,
 ) !void {
-    const raw_s = timestamp.toSeconds();
-    const total_seconds: u17 = @intCast(@mod(raw_s, 86400));
-    const day_s: std.time.epoch.DaySeconds = .{ .secs = total_seconds };
-
-    const seconds = day_s.getSecondsIntoMinute();
-    const minutes = day_s.getMinutesIntoHour();
-    const hours = day_s.getHoursIntoDay();
-
-    const last_mod_time: dos.Time = .{
-        .seconds = @intCast(@divTrunc(seconds, 2)),
-        .minutes = minutes,
-        .hours = hours,
-    };
-
-    const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(raw_s) };
-
-    const epoch_day = epoch_s.getEpochDay();
-    const year_and_day = epoch_day.calculateYearDay();
-    const month_and_day = year_and_day.calculateMonthDay();
-
-    const last_mod_date: dos.Date = .{
-        .day = month_and_day.day_index + 1,
-        .month = month_and_day.month.numeric(),
-        .year = @intCast(year_and_day.year - 1980),
-    };
+    const last_mod_time: dos.Time = .fromTimestamp(timestamp);
+    const last_mod_date: dos.Date = .fromTimestamp(timestamp);
 
     var compressed_bytes: Io.Writer.Allocating = try .initCapacity(allocator, 20);
     defer compressed_bytes.deinit();
