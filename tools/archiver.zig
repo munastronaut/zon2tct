@@ -129,7 +129,7 @@ pub fn archiveZip(
     const last_mod_time: dos.Time = .fromTimestamp(timestamp);
     const last_mod_date: dos.Date = .fromTimestamp(timestamp);
 
-    var compressed_bytes: Io.Writer.Allocating = try .initCapacity(allocator, 20);
+    var compressed_bytes: Io.Writer.Allocating = try .initCapacity(allocator, 16);
     defer compressed_bytes.deinit();
 
     var uncompressed_size: u32 = 0;
