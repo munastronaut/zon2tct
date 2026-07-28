@@ -70,13 +70,14 @@ const Kind = enum {
 
 const dos = struct {
     const Time = packed struct(u16) {
-        /// 0-29
-        seconds: u5,
+        /// 0-29, raw seconds / 2
+        double_seconds: u5,
         /// 0-59
         minutes: u6,
         /// 0-23
         hours: u5,
 
+        /// Returns a DOS timestamp.
         pub fn fromTimestamp(timestamp: Io.Timestamp) Time {
             const raw_s = timestamp.toSeconds();
             const total_seconds: u17 = @intCast(@mod(raw_s, 86400));
@@ -86,8 +87,10 @@ const dos = struct {
             const minutes = day_s.getMinutesIntoHour();
             const hours = day_s.getHoursIntoDay();
 
+            const double_seconds: u5 = @intCast(@divTrunc(seconds, 2));
+
             return .{
-                .seconds = @intCast(@divTrunc(seconds, 2)),
+                .double_seconds = double_seconds,
                 .minutes = minutes,
                 .hours = hours,
             };
@@ -100,24 +103,49 @@ const dos = struct {
         /// 1-12
         month: u4,
         /// Offset from 1980, 1980-2107
-        year: u7,
+        year_offset: u7,
 
-        pub fn fromTimestamp(timestamp: Io.Timestamp) Date {
+        /// January 1, 1980
+        pub const zero: Date = .{ .day = 1, .month = 1, .year_offset = 0 };
+
+        /// Returns a DOS date or null.
+        pub fn fromTimestamp(timestamp: Io.Timestamp) ?Date {
             const raw_s = timestamp.toSeconds();
+            if (raw_s < 0) {
+                return null;
+            }
+
             const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(raw_s) };
 
             const epoch_day = epoch_s.getEpochDay();
             const year_and_day = epoch_day.calculateYearDay();
             const month_and_day = year_and_day.calculateMonthDay();
 
-            return .{
-                .day = month_and_day.day_index + 1,
-                .month = month_and_day.month.numeric(),
-                .year = @intCast(year_and_day.year - 1980),
+            const raw_offset = std.math.sub(u16, year_and_day.year, 1980) catch |err| switch (err) {
+                error.Overflow => return null,
             };
+
+            const year_offset = std.math.cast(u7, raw_offset) orelse return null;
+            const month = month_and_day.month.numeric();
+            const day = month_and_day.day_index + 1;
+
+            return .{
+                .day = day,
+                .month = month,
+                .year_offset = year_offset,
+            };
+        }
+
+        test fromTimestamp {
+            try std.testing.expectEqual(null, fromTimestamp(.{ .nanoseconds = 0 }));
         }
     };
 };
+
+comptime {
+    // Run tests
+    _ = dos.Date;
+}
 
 pub fn archiveZip(
     allocator: Allocator,
@@ -127,7 +155,7 @@ pub fn archiveZip(
     timestamp: Io.Timestamp,
 ) !void {
     const last_mod_time: dos.Time = .fromTimestamp(timestamp);
-    const last_mod_date: dos.Date = .fromTimestamp(timestamp);
+    const last_mod_date: dos.Date = dos.Date.fromTimestamp(timestamp) orelse .zero;
 
     var compressed_bytes: Io.Writer.Allocating = try .initCapacity(allocator, 16);
     defer compressed_bytes.deinit();
