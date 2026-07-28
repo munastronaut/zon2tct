@@ -53,10 +53,7 @@ pub fn main(init: std.process.Init) !void {
 
     switch (archive_kind) {
         .tarball => try archiveTar(&fr, &fw, original_name),
-        .zip => archiveZip(arena, &fr, &fw, original_name, .now(io, .real)) catch |err| switch (err) {
-            error.WriteFailed => return fw.err orelse err,
-            else => |e| return e,
-        },
+        .zip => try archiveZip(arena, &fr, &fw, original_name, .now(io, .real)),
     }
 
     try fw.flush();
@@ -147,7 +144,51 @@ comptime {
     _ = dos.Date;
 }
 
+pub const ArchiveTarError = Io.File.Writer.Error || Io.File.Reader.Error || std.tar.Writer.WriteFileError;
+
+pub fn archiveTar(
+    in: *Io.File.Reader,
+    out: *Io.File.Writer,
+    original_name: []const u8,
+) ArchiveTarError!void {
+    var compressor_buf: [std.compress.flate.max_window_len]u8 = undefined;
+    var compressor = std.compress.flate.Compress.init(
+        &out.interface,
+        &compressor_buf,
+        .gzip,
+        .level_9,
+    ) catch |err| switch (err) {
+        error.WriteFailed => return out.err.?,
+    };
+
+    var archiver: std.tar.Writer = .{ .underlying_writer = &compressor.writer };
+    archiver.writeFile(original_name, in, 0) catch |err| switch (err) {
+        error.ReadFailed => return in.err.?,
+        error.WriteFailed => return out.err.?,
+        else => |e| return e,
+    };
+
+    compressor.finish() catch |err| switch (err) {
+        error.WriteFailed => return out.err.?,
+    };
+}
+
+pub const ArchiveZipError = Allocator.Error || Io.Writer.Error || Io.File.Writer.Error || Io.File.Reader.Error;
+
 pub fn archiveZip(
+    allocator: Allocator,
+    in: *Io.File.Reader,
+    out: *Io.File.Writer,
+    original_name: []const u8,
+    timestamp: Io.Timestamp,
+) ArchiveZipError!void {
+    return archiveZipInner(allocator, in, out, original_name, timestamp) catch |err| switch (err) {
+        error.WriteFailed => return out.err orelse err,
+        else => |e| return e,
+    };
+}
+
+pub fn archiveZipInner(
     allocator: Allocator,
     in: *Io.File.Reader,
     out: *Io.File.Writer,
@@ -164,14 +205,12 @@ pub fn archiveZip(
     var crc: std.hash.Crc32 = .init();
 
     var compressor_buf: [std.compress.flate.max_window_len]u8 = undefined;
-    var compressor = std.compress.flate.Compress.init(
+    var compressor = try std.compress.flate.Compress.init(
         &compressed_bytes.writer,
         &compressor_buf,
         .raw,
         .level_9,
-    ) catch |err| switch (err) {
-        error.WriteFailed => return in.err.?,
-    };
+    );
 
     var read_buf: [4096]u8 = undefined;
     while (true) {
@@ -247,31 +286,4 @@ pub fn archiveZip(
     };
 
     try out.interface.writeStruct(eocd, .little);
-}
-
-pub fn archiveTar(
-    in: *Io.File.Reader,
-    out: *Io.File.Writer,
-    original_name: []const u8,
-) !void {
-    var compressor_buf: [std.compress.flate.max_window_len]u8 = undefined;
-    var compressor = std.compress.flate.Compress.init(
-        &out.interface,
-        &compressor_buf,
-        .gzip,
-        .level_9,
-    ) catch |err| switch (err) {
-        error.WriteFailed => return in.err.?,
-    };
-
-    var archiver: std.tar.Writer = .{ .underlying_writer = &compressor.writer };
-    archiver.writeFile(original_name, in, 0) catch |err| switch (err) {
-        error.ReadFailed => return in.err.?,
-        error.WriteFailed => return out.err.?,
-        else => |e| return e,
-    };
-
-    compressor.finish() catch |err| switch (err) {
-        error.WriteFailed => return out.err.?,
-    };
 }
