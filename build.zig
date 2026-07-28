@@ -43,16 +43,6 @@ pub fn build(b: *Build) !void {
 
     const release_step = b.step("release", "Build the application for release targets");
 
-    //const dist_path = b.graph.path(.install_prefix, "dist");
-    //const make_dist_cmd = dist: {
-    //    const cmd = b.addSystemCommand(&.{"mkdir"});
-    //    if (b.graph.host.result.os.tag != .windows) {
-    //        cmd.addArg("-p");
-    //    }
-    //    cmd.addDirectoryArg(dist_path);
-    //    break :dist cmd;
-    //};
-
     const tgts = [_]std.Target.Query{
         .{ .cpu_arch = .x86_64, .os_tag = .linux },
         .{ .cpu_arch = .aarch64, .os_tag = .linux },
@@ -68,7 +58,7 @@ pub fn build(b: *Build) !void {
         .root_module = b.createModule(.{
             .root_source_file = b.path("tools/archiver.zig"),
             .target = b.graph.host,
-            .optimize = .fast,
+            .optimize = .safe,
         }),
     });
 
