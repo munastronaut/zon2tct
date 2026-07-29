@@ -66,7 +66,41 @@ const Kind = enum {
 };
 
 const dos = struct {
-    const Time = packed struct(u16) {
+    pub const DateAndTime = struct {
+        time: Time,
+        date: Date,
+
+        /// January 1, 1980, 00:00:00
+        pub const zero: DateAndTime = .{ .time = .zero, .date = .zero };
+
+        /// Returns *either* a DOS timestamp and date *or* null, given an Io.Timestamp.
+        /// If the timestamp takes place before the DOS epoch, returns null.
+        pub fn fromTimestamp(timestamp: Io.Timestamp) ?DateAndTime {
+            const raw_s = timestamp.toSeconds();
+            return fromSeconds(raw_s);
+        }
+
+        /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
+        /// If the timestamp takes place before the DOS epoch, returns null.
+        pub fn fromSeconds(seconds: i64) ?DateAndTime {
+            if (seconds < 0 or seconds < std.time.epoch.dos) {
+                return null;
+            }
+
+            return .{
+                .time = Time.fromSeconds(seconds).?,
+                .date = Date.fromSeconds(seconds).?,
+            };
+        }
+
+        test fromSeconds {
+            try std.testing.expectEqual(null, fromSeconds(0));
+            try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
+            try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
+        }
+    };
+
+    pub const Time = packed struct(u16) {
         /// 0-29, raw seconds / 2
         double_seconds: u5,
         /// 0-59
@@ -74,17 +108,29 @@ const dos = struct {
         /// 0-23
         hours: u5,
 
-        /// Returns a DOS timestamp.
-        pub fn fromTimestamp(timestamp: Io.Timestamp) Time {
+        /// 00:00:00
+        pub const zero: Time = .{ .double_seconds = 0, .minutes = 0, .hours = 0 };
+
+        /// Returns a DOS timestamp or null, given an Io.Timestamp.
+        /// If the timestamp takes place before the DOS epoch, returns null.
+        pub fn fromTimestamp(timestamp: Io.Timestamp) ?Time {
             const raw_s = timestamp.toSeconds();
-            const total_seconds: u17 = @intCast(@mod(raw_s, 86400));
+            return fromSeconds(raw_s);
+        }
+
+        /// Returns a DOS timestamp or null, given the amount of seconds since the Unix epoch.
+        /// If the timestamp takes place before the DOS epoch, returns null.
+        pub fn fromSeconds(seconds: i64) ?Time {
+            if (seconds < 0 or seconds < std.time.epoch.dos) {
+                return null;
+            }
+
+            const total_seconds: u17 = @intCast(@mod(seconds, 86400));
             const day_s: std.time.epoch.DaySeconds = .{ .secs = total_seconds };
 
-            const seconds = day_s.getSecondsIntoMinute();
+            const double_seconds: u5 = @intCast(@divTrunc(day_s.getSecondsIntoMinute(), 2));
             const minutes = day_s.getMinutesIntoHour();
             const hours = day_s.getHoursIntoDay();
-
-            const double_seconds: u5 = @intCast(@divTrunc(seconds, 2));
 
             return .{
                 .double_seconds = double_seconds,
@@ -92,9 +138,15 @@ const dos = struct {
                 .hours = hours,
             };
         }
+
+        test fromSeconds {
+            try std.testing.expectEqual(null, fromSeconds(0));
+            try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
+            try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
+        }
     };
 
-    const Date = packed struct(u16) {
+    pub const Date = packed struct(u16) {
         /// 1-31
         day: u5,
         /// 1-12
@@ -105,14 +157,21 @@ const dos = struct {
         /// January 1, 1980
         pub const zero: Date = .{ .day = 1, .month = 1, .year_offset = 0 };
 
-        /// Returns a DOS date or null.
+        /// Returns a DOS date or null, given an Io.Timestamp.
+        /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromTimestamp(timestamp: Io.Timestamp) ?Date {
             const raw_s = timestamp.toSeconds();
-            if (raw_s < 0) {
+            return fromSeconds(raw_s);
+        }
+
+        /// Returns a DOS date or null, given the amount of seconds since the Unix epoch.
+        /// If the timestamp takes place before the DOS epoch, returns null.
+        pub fn fromSeconds(seconds: i64) ?Date {
+            if (seconds < 0 or seconds < std.time.epoch.dos) {
                 return null;
             }
 
-            const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(raw_s) };
+            const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(seconds) };
 
             const epoch_day = epoch_s.getEpochDay();
             const year_and_day = epoch_day.calculateYearDay();
@@ -133,14 +192,18 @@ const dos = struct {
             };
         }
 
-        test fromTimestamp {
-            try std.testing.expectEqual(null, fromTimestamp(.{ .nanoseconds = 0 }));
+        test fromSeconds {
+            try std.testing.expectEqual(null, fromSeconds(0));
+            try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
+            try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
         }
     };
 };
 
 comptime {
     // Run tests
+    _ = dos.DateAndTime;
+    _ = dos.Time;
     _ = dos.Date;
 }
 
@@ -195,8 +258,10 @@ pub fn archiveZipInner(
     original_name: []const u8,
     timestamp: Io.Timestamp,
 ) !void {
-    const last_mod_time: dos.Time = .fromTimestamp(timestamp);
-    const last_mod_date: dos.Date = dos.Date.fromTimestamp(timestamp) orelse .zero;
+    const date_time: dos.DateAndTime = dos.DateAndTime.fromTimestamp(timestamp) orelse .zero;
+
+    const last_mod_time = date_time.time;
+    const last_mod_date = date_time.date;
 
     var compressed_bytes: Io.Writer.Allocating = try .initCapacity(allocator, 16);
     defer compressed_bytes.deinit();
