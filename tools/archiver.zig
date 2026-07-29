@@ -83,7 +83,7 @@ const dos = struct {
         /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?DateAndTime {
-            if (seconds < 0 or seconds < std.time.epoch.dos) {
+            if (seconds < std.time.epoch.dos) {
                 return null;
             }
 
@@ -121,7 +121,7 @@ const dos = struct {
         /// Returns a DOS timestamp or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Time {
-            if (seconds < 0 or seconds < std.time.epoch.dos) {
+            if (seconds < std.time.epoch.dos) {
                 return null;
             }
 
@@ -167,7 +167,7 @@ const dos = struct {
         /// Returns a DOS date or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Date {
-            if (seconds < 0 or seconds < std.time.epoch.dos) {
+            if (seconds < std.time.epoch.dos) {
                 return null;
             }
 
