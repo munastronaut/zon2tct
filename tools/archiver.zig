@@ -96,6 +96,7 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
+            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
         }
     };
 
@@ -141,6 +142,7 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
+            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
         }
     };
 
@@ -193,6 +195,7 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
+            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
         }
     };
 };
