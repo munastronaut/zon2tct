@@ -76,8 +76,7 @@ const dos = struct {
         /// Returns *either* a DOS timestamp and date *or* null, given an Io.Timestamp.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromTimestamp(timestamp: Io.Timestamp) ?DateAndTime {
-            const raw_s = timestamp.toSeconds();
-            return fromSeconds(raw_s);
+            return fromSeconds(timestamp.toSeconds());
         }
 
         /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
@@ -114,8 +113,7 @@ const dos = struct {
         /// Returns a DOS timestamp or null, given an Io.Timestamp.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromTimestamp(timestamp: Io.Timestamp) ?Time {
-            const raw_s = timestamp.toSeconds();
-            return fromSeconds(raw_s);
+            return fromSeconds(timestamp.toSeconds());
         }
 
         /// Returns a DOS timestamp or null, given the amount of seconds since the Unix epoch.
@@ -160,8 +158,7 @@ const dos = struct {
         /// Returns a DOS date or null, given an Io.Timestamp.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromTimestamp(timestamp: Io.Timestamp) ?Date {
-            const raw_s = timestamp.toSeconds();
-            return fromSeconds(raw_s);
+            return fromSeconds(timestamp.toSeconds());
         }
 
         /// Returns a DOS date or null, given the amount of seconds since the Unix epoch.
