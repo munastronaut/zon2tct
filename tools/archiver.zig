@@ -66,6 +66,9 @@ const Kind = enum {
 };
 
 const dos = struct {
+    /// January 1, 2108, 00:00:00, in seconds since the Unix epoch.
+    pub const limit = 4354819200;
+
     pub const DateAndTime = struct {
         time: Time,
         date: Date,
@@ -82,13 +85,12 @@ const dos = struct {
         /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?DateAndTime {
-            if (seconds < std.time.epoch.dos) {
-                return null;
-            }
+            const time = Time.fromSeconds(seconds) orelse return null;
+            const date = Date.fromSeconds(seconds) orelse return null;
 
             return .{
-                .time = Time.fromSeconds(seconds).?,
-                .date = Date.fromSeconds(seconds).?,
+                .time = time,
+                .date = date,
             };
         }
 
@@ -96,7 +98,8 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
-            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
+            try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
+            try std.testing.expect(fromSeconds(limit - 1) != null);
         }
     };
 
@@ -120,7 +123,7 @@ const dos = struct {
         /// Returns a DOS timestamp or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Time {
-            if (seconds < std.time.epoch.dos) {
+            if (seconds < std.time.epoch.dos or seconds >= limit) {
                 return null;
             }
 
@@ -142,7 +145,8 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
-            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
+            try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
+            try std.testing.expect(fromSeconds(limit - 1) != null);
         }
     };
 
@@ -166,7 +170,7 @@ const dos = struct {
         /// Returns a DOS date or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Date {
-            if (seconds < std.time.epoch.dos) {
+            if (seconds < std.time.epoch.dos or seconds >= limit) {
                 return null;
             }
 
@@ -176,11 +180,7 @@ const dos = struct {
             const year_and_day = epoch_day.calculateYearDay();
             const month_and_day = year_and_day.calculateMonthDay();
 
-            const raw_offset = std.math.sub(u16, year_and_day.year, 1980) catch |err| switch (err) {
-                error.Overflow => return null,
-            };
-
-            const year_offset = std.math.cast(u7, raw_offset) orelse return null;
+            const year_offset: u7 = @intCast(year_and_day.year - 1980);
             const month = month_and_day.month.numeric();
             const day = month_and_day.day_index + 1;
 
@@ -195,7 +195,8 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(0));
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
-            try std.testing.expectEqual(null, fromSeconds(4354819200)); // January 1, 2108, 00:00:00
+            try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
+            try std.testing.expect(fromSeconds(limit - 1) != null);
         }
     };
 };
@@ -226,8 +227,8 @@ pub fn archiveTar(
 
     var archiver: std.tar.Writer = .{ .underlying_writer = &compressor.writer };
     archiver.writeFile(original_name, in, 0) catch |err| switch (err) {
-        error.ReadFailed => return in.err.?,
         error.WriteFailed => return out.err.?,
+        error.ReadFailed => return in.err.?,
         else => |e| return e,
     };
 
@@ -245,16 +246,17 @@ pub fn archiveZip(
     original_name: []const u8,
     timestamp: Io.Timestamp,
 ) ArchiveZipError!void {
-    return archiveZipInner(allocator, in, out, original_name, timestamp) catch |err| switch (err) {
-        error.WriteFailed => return out.err orelse err,
+    return archiveZipInner(allocator, &in.interface, &out.interface, original_name, timestamp) catch |err| switch (err) {
+        error.WriteFailed => |e| return out.err orelse e,
+        error.ReadFailed => return in.err.?,
         else => |e| return e,
     };
 }
 
 pub fn archiveZipInner(
     allocator: Allocator,
-    in: *Io.File.Reader,
-    out: *Io.File.Writer,
+    in: *Io.Reader,
+    out: *Io.Writer,
     original_name: []const u8,
     timestamp: Io.Timestamp,
 ) !void {
@@ -279,9 +281,7 @@ pub fn archiveZipInner(
 
     var read_buf: [4096]u8 = undefined;
     while (true) {
-        const bytes_read = in.interface.readSliceShort(&read_buf) catch |err| switch (err) {
-            error.ReadFailed => return in.err.?,
-        };
+        const bytes_read = try in.readSliceShort(&read_buf);
         if (bytes_read == 0) break;
 
         const slice = read_buf[0..bytes_read];
@@ -308,9 +308,9 @@ pub fn archiveZipInner(
         .extra_len = 0,
     };
 
-    try out.interface.writeStruct(local_header, .little);
-    try out.interface.writeAll(original_name);
-    try out.interface.writeAll(compressed_bytes.written());
+    try out.writeStruct(local_header, .little);
+    try out.writeAll(original_name);
+    try out.writeAll(compressed_bytes.written());
 
     const cd_offset: u32 = @intCast(@sizeOf(std.zip.LocalFileHeader) + original_name.len + compressed_size);
 
@@ -334,8 +334,8 @@ pub fn archiveZipInner(
         .local_file_header_offset = 0,
     };
 
-    try out.interface.writeStruct(cd_header, .little);
-    try out.interface.writeAll(original_name);
+    try out.writeStruct(cd_header, .little);
+    try out.writeAll(original_name);
 
     const cd_size: u32 = @intCast(@sizeOf(std.zip.CentralDirectoryFileHeader) + original_name.len);
 
@@ -350,5 +350,5 @@ pub fn archiveZipInner(
         .comment_len = 0,
     };
 
-    try out.interface.writeStruct(eocd, .little);
+    try out.writeStruct(eocd, .little);
 }
