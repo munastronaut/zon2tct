@@ -99,7 +99,12 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
             try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
-            try std.testing.expect(fromSeconds(limit - 1) != null);
+
+            const one_s_before_2108: DateAndTime = .{
+                .time = .{ .double_seconds = 29, .minutes = 59, .hours = 23 },
+                .date = .{ .day = 31, .month = 12, .year_offset = 127 },
+            };
+            try std.testing.expectEqual(one_s_before_2108, fromSeconds(limit - 1));
         }
     };
 
@@ -146,7 +151,9 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
             try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
-            try std.testing.expect(fromSeconds(limit - 1) != null);
+
+            const one_s_before_2108: Time = .{ .double_seconds = 29, .minutes = 59, .hours = 23 };
+            try std.testing.expectEqual(one_s_before_2108, fromSeconds(limit - 1));
         }
     };
 
@@ -196,7 +203,9 @@ const dos = struct {
             try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
             try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
-            try std.testing.expect(fromSeconds(limit - 1) != null);
+
+            const one_s_before_2108: Date = .{ .day = 31, .month = 12, .year_offset = 127 };
+            try std.testing.expectEqual(one_s_before_2108, fromSeconds(limit - 1));
         }
     };
 };
