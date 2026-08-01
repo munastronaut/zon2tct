@@ -109,6 +109,11 @@ const State = enum {
     invalid,
 };
 
+inline fn simpleToken(l: *Lexer, tok: *Token, id: Token.Id) void {
+    tok.id = id;
+    l.idx += 1;
+}
+
 /// Lexes on-demand, returns a token.
 pub fn next(l: *Lexer) Token {
     var result: Token = .{
@@ -145,42 +150,22 @@ pub fn next(l: *Lexer) Token {
                 continue :state .identifier;
             },
             '@' => continue :state .saw_at_sign,
-            '=' => {
-                result.id = .equal;
-                l.idx += 1;
-            },
             '\\' => {
                 result.id = .multiline_string_literal_line;
                 continue :state .backslash;
             },
-            ',' => {
-                result.id = .comma;
-                l.idx += 1;
-            },
-            '{' => {
-                result.id = .l_brace;
-                l.idx += 1;
-            },
-            '}' => {
-                result.id = .r_brace;
-                l.idx += 1;
-            },
-            '.' => {
-                result.id = .period;
-                l.idx += 1;
-            },
-            '-' => {
-                result.id = .minus;
-                l.idx += 1;
-            },
-            '+' => {
-                result.id = .plus;
-                l.idx += 1;
-            },
+
+            '=' => simpleToken(l, &result, .equal),
+            ',' => simpleToken(l, &result, .comma),
+            '.' => simpleToken(l, &result, .period),
+            '{' => simpleToken(l, &result, .l_brace),
+            '}' => simpleToken(l, &result, .r_brace),
+            '-' => simpleToken(l, &result, .minus),
+            '+' => simpleToken(l, &result, .plus),
+
             '/' => continue :state .slash,
             '0'...'9' => {
-                result.id = .number_literal;
-                l.idx += 1;
+                simpleToken(l, &result, .number_literal);
                 continue :state .int;
             },
             else => continue :state .invalid,
