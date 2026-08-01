@@ -93,6 +93,15 @@ pub fn build(b: *Build) !void {
         const archive = b.addInstallFileWithDir(archived_file, .{ .custom = "dist" }, archive_filename);
         release_step.dependOn(&archive.step);
     }
+
+    const exe_check = addCompilerStep(b, .{
+        .optimize = optimize,
+        .target = target,
+        .strip = !optimize.runtimeSafety(),
+    });
+
+    const check = b.step("check", "Check if zon2tct compiles");
+    check.dependOn(&exe_check.step);
 }
 
 const AddCompilerModOptions = struct {
