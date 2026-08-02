@@ -331,7 +331,7 @@ const usage_completion =
 ;
 
 fn cmdCompletion(io: Io, args: []const []const u8) !void {
-    var shell: ?Shell = null;
+    var shell: Shell = .none;
     var args_iter: ArgsIterator = .{ .args = args[2..] };
     while (args_iter.next()) |arg| {
         if (mem.startsWith(u8, arg, "-")) {
@@ -342,7 +342,7 @@ fn cmdCompletion(io: Io, args: []const []const u8) !void {
             }
         } else {
             if (std.meta.stringToEnum(Shell, arg)) |shell_arg| {
-                if (shell) |_| {
+                if (shell != .none) {
                     fatal("more than one shell option passed", .{});
                 } else {
                     shell = shell_arg;
@@ -353,11 +353,11 @@ fn cmdCompletion(io: Io, args: []const []const u8) !void {
         }
     }
 
-    if (shell == null) fatal("expected shell option", .{});
+    if (shell == .none) fatal("expected shell option", .{});
 
     var w = Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &w.interface;
-    const completion = completions[@backingInt(shell.?)];
+    const completion = completions[@backingInt(shell)];
     try stdout.writeAll(completion);
     try stdout.flush();
 }
@@ -366,14 +366,19 @@ const Shell = enum {
     bash,
     fish,
     zsh,
+
+    none,
 };
 
 const completions = blk: {
     const info = @typeInfo(Shell).@"enum";
     const field_names = info.field_names;
     const field_values = info.field_values;
-    var content: [field_names.len][]const u8 = undefined;
+    var content: [field_names.len - 1][]const u8 = undefined;
     for (field_names, field_values) |field_name, field_value| {
+        if (field_value == @backingInt(Shell.none)) {
+            continue;
+        }
         content[field_value] = @embedFile("completions/" ++ field_name ++ "-completion");
     }
     break :blk content;
