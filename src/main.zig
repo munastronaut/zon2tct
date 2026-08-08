@@ -340,16 +340,11 @@ fn cmdCompletion(io: Io, args: []const []const u8) !void {
             } else {
                 fatal("unrecognized parameter '{s}'", .{arg});
             }
+        } else if (std.meta.stringToEnum(Shell, arg)) |shell_arg| switch (shell) {
+            .none => shell = shell_arg,
+            else => fatal("more than one shell option passed", .{}),
         } else {
-            if (std.meta.stringToEnum(Shell, arg)) |shell_arg| {
-                if (shell != .none) {
-                    fatal("more than one shell option passed", .{});
-                } else {
-                    shell = shell_arg;
-                }
-            } else {
-                fatal("unrecognized shell option '{s}'", .{arg});
-            }
+            fatal("unrecognized shell option '{s}'", .{arg});
         }
     }
 
