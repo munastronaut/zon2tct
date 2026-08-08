@@ -357,7 +357,12 @@ fn cmdCompletion(io: Io, args: []const []const u8) !void {
 
     var w = Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &w.interface;
-    const completion = completions[@backingInt(shell)];
+
+    const completion = switch (shell) {
+        .none => unreachable,
+        inline else => |e| @embedFile("completions/" ++ @tagName(e) ++ "-completion"),
+    };
+
     try stdout.writeAll(completion);
     try stdout.flush();
 }
@@ -368,18 +373,4 @@ const Shell = enum {
     zsh,
 
     none,
-};
-
-const completions = blk: {
-    const info = @typeInfo(Shell).@"enum";
-    const field_names = info.field_names;
-    const field_values = info.field_values;
-    var content: [field_names.len - 1][]const u8 = undefined;
-    for (field_names, field_values) |field_name, field_value| {
-        if (field_value == @backingInt(Shell.none)) {
-            continue;
-        }
-        content[field_value] = @embedFile("completions/" ++ field_name ++ "-completion");
-    }
-    break :blk content;
 };
