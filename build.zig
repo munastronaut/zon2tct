@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 const Build = std.Build;
 
-const zon2tct_version: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 1 };
+const semver: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 1 };
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -22,11 +22,7 @@ pub fn build(b: *Build) !void {
     const exe_options = b.addOptions();
     exe.root_module.addOptions("build_options", exe_options);
 
-    const version_str = b.fmt("{d}.{d}.{d}", .{
-        zon2tct_version.major,
-        zon2tct_version.minor,
-        zon2tct_version.patch,
-    });
+    const version_str = b.fmt("{f}", .{semver});
     const version = try b.allocator.dupeSentinel(u8, version_str, 0);
 
     exe_options.addOption([:0]const u8, "version", version);
@@ -77,12 +73,7 @@ pub fn build(b: *Build) !void {
         const archive_ext = if (is_windows) ".zip" else ".tar.gz";
 
         const tgt_str = b.fmt("{t}-{t}", .{ res_tgt.result.cpu.arch, res_tgt.result.os.tag });
-        const archive_name = b.fmt("zon2tct-{s}-{d}.{d}.{d}", .{
-            tgt_str,
-            zon2tct_version.major,
-            zon2tct_version.minor,
-            zon2tct_version.patch,
-        });
+        const archive_name = b.fmt("zon2tct-{s}-{f}", .{ tgt_str, semver });
 
         const archive_filename = b.fmt("{s}{s}", .{ archive_name, archive_ext });
 
@@ -97,7 +88,6 @@ pub fn build(b: *Build) !void {
     const exe_check = addCompilerStep(b, .{
         .optimize = optimize,
         .target = target,
-        .strip = !optimize.runtimeSafety(),
     });
 
     const check = b.step("check", "Check if zon2tct compiles");
