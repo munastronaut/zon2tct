@@ -450,15 +450,12 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
             switch (tree.nodeId(child_node)) {
                 .number_literal => if (std.fmt.parseInt(u32, child_slice, 10)) |pk| {
                     if (pk == 0) {
-                        try ig.addErrorTokNotes(tok, "integer literal '-0' is ambiguous", .{}, &.{
-                            try ig.errNoteTok(tok, "use '0' for an integer zero", .{}),
-                            try ig.errNoteTok(tok, "use '-0.0' for a floating-point signed zero", .{}),
-                        });
+                        try ig.addErrorTok(tok, "'-0' is not a valid primary key", .{});
                     } else {
-                        try ig.addErrorTok(tok, "integer pk underflows u32 range", .{});
+                        try ig.addErrorTok(tok, "primary keys cannot be negative", .{});
                     }
                 } else |err| switch (err) {
-                    error.Overflow => try ig.addErrorTok(tok, "integer pk underflows u32 range", .{}),
+                    error.Overflow => try ig.addErrorTok(tok, "primary keys cannot be negative", .{}),
                     error.InvalidCharacter => try ig.addErrorTok(tok, "invalid character in integer pk", .{}),
                 },
                 .identifier => if (mem.eql(u8, child_slice, "inf")) {
