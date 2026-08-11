@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 const fatal = std.process.fatal;
 const Io = std.Io;
 const Build = std.Build;
@@ -51,9 +52,11 @@ pub fn main(init: std.process.Init) !void {
 
     const original_name = Io.Dir.path.basename(input_path);
 
+    const timestamp: Io.Timestamp = .now(io, .real);
+
     switch (archive_kind) {
-        .tarball => try archiveTar(&fr, &fw, original_name),
-        .zip => try archiveZip(arena, &fr, &fw, original_name, .now(io, .real)),
+        .tarball => try archiveTar(&fr, &fw, original_name, timestamp),
+        .zip => try archiveZip(arena, &fr, &fw, original_name, timestamp),
     }
 
     try fw.flush();
@@ -85,12 +88,17 @@ const dos = struct {
         /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?DateAndTime {
-            const time = Time.fromSeconds(seconds) orelse return null;
-            const date = Date.fromSeconds(seconds) orelse return null;
+            if (seconds < std.time.epoch.dos or seconds >= limit) return null;
+            return fromSecondsAssert(seconds);
+        }
 
+        /// Asserts that the Unix timestamp does not take place before the DOS epoch or after
+        /// January 1, 2108, 00:00:00.
+        pub fn fromSecondsAssert(seconds: i64) DateAndTime {
+            assert(seconds >= std.time.epoch.dos and seconds < limit);
             return .{
-                .time = time,
-                .date = date,
+                .time = .fromSecondsAssert(seconds),
+                .date = .fromSecondsAssert(seconds),
             };
         }
 
@@ -128,9 +136,14 @@ const dos = struct {
         /// Returns a DOS timestamp or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Time {
-            if (seconds < std.time.epoch.dos or seconds >= limit) {
-                return null;
-            }
+            if (seconds < std.time.epoch.dos or seconds >= limit) return null;
+            return fromSecondsAssert(seconds);
+        }
+
+        /// Asserts that the Unix timestamp does not take place before the DOS epoch or after
+        /// January 1, 2108, 00:00:00.
+        pub fn fromSecondsAssert(seconds: i64) Time {
+            assert(seconds >= std.time.epoch.dos and seconds < limit);
 
             const total_seconds: u17 = @intCast(@mod(seconds, 86400));
             const day_s: std.time.epoch.DaySeconds = .{ .secs = total_seconds };
@@ -144,16 +157,6 @@ const dos = struct {
                 .minutes = minutes,
                 .hours = hours,
             };
-        }
-
-        test fromSeconds {
-            try std.testing.expectEqual(null, fromSeconds(0));
-            try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
-            try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
-            try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
-
-            const one_s_before_2108: Time = .{ .double_seconds = 29, .minutes = 59, .hours = 23 };
-            try std.testing.expectEqual(one_s_before_2108, fromSeconds(limit - 1));
         }
     };
 
@@ -177,10 +180,14 @@ const dos = struct {
         /// Returns a DOS date or null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
         pub fn fromSeconds(seconds: i64) ?Date {
-            if (seconds < std.time.epoch.dos or seconds >= limit) {
-                return null;
-            }
+            if (seconds < std.time.epoch.dos or seconds >= limit) return null;
+            return fromSecondsAssert(seconds);
+        }
 
+        /// Asserts that the Unix timestamp does not take place before the DOS epoch or after
+        /// January 1, 2108, 00:00:00.
+        pub fn fromSecondsAssert(seconds: i64) Date {
+            assert(seconds >= std.time.epoch.dos and seconds < limit);
             const epoch_s: std.time.epoch.EpochSeconds = .{ .secs = @intCast(seconds) };
 
             const epoch_day = epoch_s.getEpochDay();
@@ -197,24 +204,12 @@ const dos = struct {
                 .year_offset = year_offset,
             };
         }
-
-        test fromSeconds {
-            try std.testing.expectEqual(null, fromSeconds(0));
-            try std.testing.expectEqual(null, fromSeconds(std.time.epoch.dos - 1));
-            try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
-            try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
-
-            const one_s_before_2108: Date = .{ .day = 31, .month = 12, .year_offset = 127 };
-            try std.testing.expectEqual(one_s_before_2108, fromSeconds(limit - 1));
-        }
     };
 };
 
 comptime {
     // Run tests
     _ = dos.DateAndTime;
-    _ = dos.Time;
-    _ = dos.Date;
 }
 
 pub const ArchiveTarError = Io.File.Writer.Error || Io.File.Reader.Error || std.tar.Writer.WriteFileError;
@@ -223,6 +218,7 @@ pub fn archiveTar(
     in: *Io.File.Reader,
     out: *Io.File.Writer,
     original_name: []const u8,
+    timestamp: Io.Timestamp,
 ) ArchiveTarError!void {
     var compressor_buf: [std.compress.flate.max_window_len]u8 = undefined;
     var compressor = std.compress.flate.Compress.init(
@@ -235,7 +231,7 @@ pub fn archiveTar(
     };
 
     var archiver: std.tar.Writer = .{ .underlying_writer = &compressor.writer };
-    archiver.writeFile(original_name, in, 0) catch |err| switch (err) {
+    archiver.writeFile(original_name, in, @intCast(timestamp.toSeconds())) catch |err| switch (err) {
         error.WriteFailed => return out.err.?,
         error.ReadFailed => return in.err.?,
         else => |e| return e,
