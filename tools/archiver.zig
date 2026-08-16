@@ -72,30 +72,29 @@ const dos = struct {
     /// January 1, 2108, 00:00:00, in seconds since the Unix epoch.
     pub const limit = 4354819200;
 
-    pub const DateAndTime = struct {
+    pub const DateTime = struct {
         time: Time,
         date: Date,
 
         /// January 1, 1980, 00:00:00
-        pub const zero: DateAndTime = .{ .time = .zero, .date = .zero };
+        pub const zero: DateTime = .{ .time = .zero, .date = .zero };
 
         /// Returns *either* a DOS timestamp and date *or* null, given an Io.Timestamp.
         /// If the timestamp takes place before the DOS epoch, returns null.
-        pub fn fromTimestamp(timestamp: Io.Timestamp) ?DateAndTime {
+        pub fn fromTimestamp(timestamp: Io.Timestamp) ?DateTime {
             return fromSeconds(timestamp.toSeconds());
         }
 
         /// Returns *either* a DOS timestamp and date *or* null, given the amount of seconds since the Unix epoch.
         /// If the timestamp takes place before the DOS epoch, returns null.
-        pub fn fromSeconds(seconds: i64) ?DateAndTime {
+        pub fn fromSeconds(seconds: i64) ?DateTime {
             if (seconds < std.time.epoch.dos or seconds >= limit) return null;
             return fromSecondsAssert(seconds);
         }
 
         /// Asserts that the Unix timestamp does not take place before the DOS epoch or after
         /// January 1, 2108, 00:00:00.
-        pub fn fromSecondsAssert(seconds: i64) DateAndTime {
-            assert(seconds >= std.time.epoch.dos and seconds < limit);
+        pub fn fromSecondsAssert(seconds: i64) DateTime {
             return .{
                 .time = .fromSecondsAssert(seconds),
                 .date = .fromSecondsAssert(seconds),
@@ -108,7 +107,7 @@ const dos = struct {
             try std.testing.expectEqual(zero, fromSeconds(std.time.epoch.dos));
             try std.testing.expectEqual(null, fromSeconds(limit)); // January 1, 2108, 00:00:00
 
-            const one_s_before_2108: DateAndTime = .{
+            const one_s_before_2108: DateTime = .{
                 .time = .{ .double_seconds = 29, .minutes = 59, .hours = 23 },
                 .date = .{ .day = 31, .month = 12, .year_offset = 127 },
             };
@@ -209,7 +208,7 @@ const dos = struct {
 
 comptime {
     // Run tests
-    _ = dos.DateAndTime;
+    _ = dos.DateTime;
 }
 
 pub const ArchiveTarError = Io.File.Writer.Error || Io.File.Reader.Error || std.tar.Writer.WriteFileError;
@@ -265,7 +264,7 @@ pub fn archiveZipInner(
     original_name: []const u8,
     timestamp: Io.Timestamp,
 ) !void {
-    const date_time: dos.DateAndTime = dos.DateAndTime.fromTimestamp(timestamp) orelse .zero;
+    const date_time: dos.DateTime = dos.DateTime.fromTimestamp(timestamp) orelse .zero;
 
     const last_mod_time = date_time.time;
     const last_mod_date = date_time.date;
