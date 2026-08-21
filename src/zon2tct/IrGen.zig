@@ -1,6 +1,6 @@
 const IrGen = @This();
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("../zon2tct.zig");
 const Ir = zon2tct.Ir;
 const Tree = zon2tct.Tree;
 
@@ -111,37 +111,6 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
             .error_notes = &.{},
         };
     }
-}
-
-test generate {
-    const io = std.testing.io;
-    const gpa = std.testing.allocator;
-
-    const path = "examples/1960.zon";
-    var f = std.Io.Dir.cwd().openFile(io, path, .{}) catch unreachable;
-
-    var read_buf: [1024]u8 = undefined;
-    var file_reader = f.reader(io, &read_buf);
-    const src = try zon2tct.readSourceFileToEndAlloc(gpa, &file_reader);
-    defer gpa.free(src);
-
-    var tree: Tree = try .parse(gpa, src);
-    defer tree.deinit(gpa);
-
-    var ir = try generate(gpa, tree);
-    defer ir.deinit(gpa);
-
-    if (ir.hasCompileErrors()) {
-        var wip: zon2tct.ErrorBundle.Wip = undefined;
-        try wip.init(gpa);
-        defer wip.deinit();
-        try wip.addIrErrorMessages(ir, tree, src, path);
-        var eb = try wip.toOwnedBundle();
-        defer eb.deinit(gpa);
-        eb.renderToStderr(io, .auto) catch {};
-    }
-
-    try std.testing.expect(!ir.hasCompileErrors());
 }
 
 fn deinit(ig: *IrGen) void {

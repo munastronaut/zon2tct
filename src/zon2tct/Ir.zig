@@ -5,7 +5,7 @@ const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("../zon2tct.zig");
 const Tree = zon2tct.Tree;
 
 string_bytes: []u8,

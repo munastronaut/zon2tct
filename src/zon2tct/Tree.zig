@@ -5,7 +5,7 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("../zon2tct.zig");
 const Lexer = zon2tct.Lexer;
 const Token = zon2tct.Token;
 const Parse = zon2tct.Parse;

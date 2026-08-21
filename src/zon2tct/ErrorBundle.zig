@@ -7,7 +7,7 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("../zon2tct.zig");
 const Color = zon2tct.Color;
 
 string_bytes: []const u8,
@@ -337,7 +337,7 @@ pub const Wip = struct {
                     .span_end = err_span.end,
                     .line = @intCast(err_loc.line),
                     .column = @intCast(err_loc.column),
-                    .src_line = try eb.addString(err_loc.src_line),
+                    .src_line = try eb.addString(err_loc.source_line),
                 }),
                 .notes_len = err.note_count,
             });
@@ -369,7 +369,7 @@ pub const Wip = struct {
                         .src_line = if (note_loc.eql(err_loc))
                             0
                         else
-                            try eb.addString(note_loc.src_line),
+                            try eb.addString(note_loc.source_line),
                     }),
                     .notes_len = 0,
                 }));

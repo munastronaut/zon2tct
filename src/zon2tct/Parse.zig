@@ -4,7 +4,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const zon2tct = @import("zon2tct.zig");
+const zon2tct = @import("../zon2tct.zig");
 const Tree = zon2tct.Tree;
 const Node = Tree.Node;
 const Token = zon2tct.Token;
