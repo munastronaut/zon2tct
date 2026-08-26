@@ -15,7 +15,7 @@ pub fn build(b: *Build) !void {
     });
 
     const zon2tct_mod = b.addModule("zon2tct", .{
-        .root_source_file = b.path("src/zon2tct/zon2tct.zig"),
+        .root_source_file = b.path("src/zon2tct.zig"),
     });
     exe.root_module.addImport("zon2tct", zon2tct_mod);
 
