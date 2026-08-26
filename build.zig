@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 const Build = std.Build;
 
-const semver: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 1 };
+const semver: std.SemanticVersion = .{ .major = 0, .minor = 4, .patch = 2 };
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
