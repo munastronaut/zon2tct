@@ -9,6 +9,7 @@ install_latest() {
 
     mkdir -p "$HOME/.zon2tct"
     tar -xzf zon2tct.tar.gz -C "$HOME/.zon2tct"
+    chmod +x "$HOME/.zon2tct/zon2tct"
     rm zon2tct.tar.gz
 }
 
@@ -46,8 +47,8 @@ work() {
     TARGET_FILE=""
 
     case "$SHELL" in
-        */fish) TARGET_FILE="$HOME/.config/fish/config.fish";;
-        */zsh)
+        *fish) TARGET_FILE="$HOME/.config/fish/config.fish";;
+        *zsh)
             if [ -f "$HOME/.zshenv" ]; then
                 TARGET_FILE="$HOME/.zshenv"
             elif [ -f "$HOME/.zprofile" ]; then
@@ -73,34 +74,41 @@ work() {
             exit 0
         fi
 
-        if [[ "$SHELL" == */fish ]]; then
-            {
-                echo
-                echo "# zon2tct"
-                echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
-                echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
-            } >> "$TARGET_FILE"
-            echo "restart fish or run 'source $TARGET_FILE' to start using zon2tct"
-        else
-            {
-                echo
-                echo "# zon2tct"
-                echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
-                echo 'export PATH="$PATH:$Z2T_INSTALL"'
-            } >> "$TARGET_FILE"
-            echo "run 'source $TARGET_FILE' to start using zon2tct"
-        fi
+        case "$SHELL" in
+            *fish)
+                {
+                    echo
+                    echo "# zon2tct"
+                    echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
+                    echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
+                } >> "$TARGET_FILE"
+                echo "restart fish or run 'source $TARGET_FILE' to start using zon2tct"
+                ;;
+            *)
+                {
+                    echo
+                    echo "# zon2tct"
+                    echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
+                    echo 'export PATH="$PATH:$Z2T_INSTALL"'
+                } >> "$TARGET_FILE"
+                chmod +x "$HOME/.zon2tct/zon2tct"
+                echo "run 'source $TARGET_FILE' to start using zon2tct"
+                ;;
+        esac
     else
         echo
         echo "no suitable shell startup file found"
         echo "please add the following lines to your shell's startup script (or execute them in your current session):"
-        if [[ "$SHELL" == */fish ]]; then
-            echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
-            echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
-        else
-            echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
-            echo 'export PATH="$PATH:$Z2T_INSTALL"'
-        fi
+        case "$SHELL" in
+            *fish)
+                echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
+                echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
+                ;;
+            *)
+                echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
+                echo 'export PATH="$PATH:$Z2T_INSTALL"'
+                ;;
+        esac
     fi
 }
 
