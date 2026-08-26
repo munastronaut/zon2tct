@@ -366,13 +366,19 @@ fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void 
                 }
 
                 if (ig.identAsString(ident_tok)) |name_str| {
-                    const value = try ig.resolvePk(val_node, table) orelse continue;
-                    const gop = try table.getOrPutContext(ig.gpa, @backingInt(name_str), StringIndexContext{ .bytes = &ig.string_bytes });
+                    const value = try ig.resolvePk(val_node, table);
+                    const gop = try table.getOrPutContext(
+                        ig.gpa,
+                        @backingInt(name_str),
+                        StringIndexContext{ .bytes = &ig.string_bytes },
+                    );
                     if (gop.found_existing) {
                         const raw_str = name_str.getAny(ig.string_bytes.items);
                         try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
                     } else {
-                        gop.value_ptr.* = value;
+                        // We use 4294967295 as the poison value here because no modder in their
+                        // right mind would use that as an actual primary key.
+                        gop.value_ptr.* = if (value) |pk| pk else std.math.maxInt(u32);
                     }
                 } else |err| switch (err) {
                     error.BadString => {},
