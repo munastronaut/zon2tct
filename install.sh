@@ -91,7 +91,6 @@ work() {
                     echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
                     echo 'export PATH="$PATH:$Z2T_INSTALL"'
                 } >> "$TARGET_FILE"
-                chmod +x "$HOME/.zon2tct/zon2tct"
                 echo "run 'source $TARGET_FILE' to start using zon2tct"
                 ;;
         esac
