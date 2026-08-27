@@ -104,6 +104,30 @@ pub const Node = struct {
         struct_init_dot_two_comma,
         struct_init_dot,
         struct_init_dot_comma,
+
+        pub fn format(id: Id, w: *std.Io.Writer) std.Io.Writer.Error!void {
+            switch (id) {
+                .root => try w.writeAll("root node"),
+                .negation => try w.writeAll("negation"),
+                .char_literal => try w.writeAll("a character literal"),
+                .number_literal => try w.writeAll("a numeric literal"),
+                .identifier => try w.writeAll("a raw identifier"),
+                .enum_literal => try w.writeAll("an alias"),
+                .string_literal, .multiline_string_literal => try w.writeAll("a string literal"),
+
+                .array_init_dot_two,
+                .array_init_dot_two_comma,
+                .array_init_dot,
+                .array_init_dot_comma,
+                => try w.writeAll("an array"),
+
+                .struct_init_dot_two,
+                .struct_init_dot_two_comma,
+                .struct_init_dot,
+                .struct_init_dot_comma,
+                => try w.writeAll("a struct"),
+            }
+        }
     };
 
     pub const Data = union {

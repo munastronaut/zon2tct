@@ -439,7 +439,7 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
                 else => try ig.addErrorTok(tok, "expected integer pk after '-'", .{}),
             }
         },
-        else => try ig.addErrorTok(tok, "expected enum literal or integer pk", .{}),
+        else => try ig.addErrorTok(tok, "expected enum literal or integer pk, found {f}", .{id}),
     }
     return null;
 }
