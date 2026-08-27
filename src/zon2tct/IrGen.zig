@@ -553,249 +553,290 @@ fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index
         try payload.questions.append(gpa, .{ .text = qn_text });
 
         if (qn.answers) |ans_node| {
-            try ig.lowerAnswers(payload, ans_node, qn_idx);
+            var ans_buf: [2]Tree.Node.Index = undefined;
+            const ans_full = try ig.resolveArray(&ans_buf, ans_node);
+
+            for (ans_full) |ans_elem_node| {
+                try ig.lowerAnswer(payload, ans_elem_node, qn_idx);
+            }
         } else {
             try ig.addErrorNode(qn_elem_node, "question requires 'answers' field", .{});
         }
     }
 }
 
-inline fn lowerAnswers(
+fn lowerAnswer(
     ig: *IrGen,
-    payload_wip: *Ir.Payload.Wip,
-    ans_node: Tree.Node.Index,
+    payload: *Ir.Payload.Wip,
+    ans_elem_node: Tree.Node.Index,
     qn_idx: u32,
 ) !void {
     const gpa = ig.gpa;
     const tree = ig.tree;
 
-    var ans_buf: [2]Tree.Node.Index = undefined;
-    const ans_full = try ig.resolveArray(&ans_buf, ans_node);
+    const ans = try ig.parseStruct(Answer, ans_elem_node);
+    const ans_idx: u32 = @intCast(payload.answers.items.len);
 
-    for (ans_full) |ans_elem_node| {
-        const ans = try ig.parseStruct(Answer, ans_elem_node);
-        const ans_idx: u32 = @intCast(payload_wip.answers.items.len);
+    if (ans.name) |name_node| {
+        const node_id = tree.nodeId(name_node);
+        if (node_id != .string_literal and node_id != .multiline_string_literal) {
+            try ig.addErrorNode(name_node, "expected string literal", .{});
+        } else if (ig.strLitAsString(name_node)) |res| switch (res) {
+            .nts => |nts| try payload.symbols.append(gpa, .{ .kind = .answer, .idx = ans_idx, .name = nts }),
+            .slice => |slice| try ig.verifySlice(slice, name_node),
+        } else |err| switch (err) {
+            error.BadString => {},
+            error.OutOfMemory => |e| return e,
+        }
+    }
 
-        if (ans.name) |name_node| {
-            const node_id = tree.nodeId(name_node);
+    const ans_text: Ir.NullTerminatedString = blk: {
+        if (ans.text) |text_node| {
+            const node_id = tree.nodeId(text_node);
             if (node_id != .string_literal and node_id != .multiline_string_literal) {
-                try ig.addErrorNode(name_node, "expected string literal", .{});
-            } else if (ig.strLitAsString(name_node)) |res| switch (res) {
-                .nts => |nts| try payload_wip.symbols.append(gpa, .{ .kind = .answer, .idx = ans_idx, .name = nts }),
-                .slice => |slice| try ig.verifySlice(slice, name_node),
+                try ig.addErrorNode(text_node, "expected string literal", .{});
+            } else if (ig.strLitAsString(text_node)) |res| switch (res) {
+                .nts => |nts| break :blk nts,
+                .slice => |slice| try ig.verifySlice(slice, text_node),
             } else |err| switch (err) {
                 error.BadString => {},
                 error.OutOfMemory => |e| return e,
             }
+        } else {
+            try ig.addErrorNode(ans_elem_node, "answer requires 'text' field", .{});
         }
+        break :blk .empty;
+    };
 
-        const ans_text: Ir.NullTerminatedString = blk: {
-            if (ans.text) |text_node| {
-                const node_id = tree.nodeId(text_node);
-                if (node_id != .string_literal and node_id != .multiline_string_literal) {
-                    try ig.addErrorNode(text_node, "expected string literal", .{});
-                } else if (ig.strLitAsString(text_node)) |res| switch (res) {
-                    .nts => |nts| break :blk nts,
-                    .slice => |slice| try ig.verifySlice(slice, text_node),
-                } else |err| switch (err) {
-                    error.BadString => {},
-                    error.OutOfMemory => |e| return e,
-                }
-            } else {
-                try ig.addErrorNode(ans_elem_node, "answer requires 'text' field", .{});
-            }
-            break :blk .empty;
-        };
+    try payload.answers.append(gpa, .{
+        .qn = qn_idx,
+        .text = ans_text,
+    });
 
-        try payload_wip.answers.append(gpa, .{
-            .qn = qn_idx,
-            .text = ans_text,
-        });
+    if (ans.feedback) |fdbk_node| {
+        try ig.lowerFeedback(payload, fdbk_node, ans_elem_node, ans_idx);
+    }
 
-        if (ans.feedback) |fdbk_node| {
-            try payload_wip.feedbacks.append(gpa, .{
-                .ans = ans_idx,
-                .text = text: {
-                    const node_id = tree.nodeId(fdbk_node);
-                    if (node_id != .string_literal and node_id != .multiline_string_literal) {
-                        try ig.addErrorNode(ans_elem_node, "expected string literal", .{});
-                    } else if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
-                        .nts => |nts| break :text nts,
-                        .slice => |slice| try ig.verifySlice(slice, fdbk_node),
-                    } else |err| switch (err) {
-                        error.BadString => {},
-                        error.OutOfMemory => |e| return e,
-                    }
-                    break :text .empty;
-                },
-            });
+    if (ans.global_effects) |geff_node| {
+        var geff_buf: [2]Tree.Node.Index = undefined;
+        const geff_full = try ig.resolveArray(&geff_buf, geff_node);
+
+        for (geff_full) |geff_elem_node| {
+            try ig.lowerGlobalEffect(payload, geff_elem_node, ans_idx);
         }
+    }
 
-        if (ans.global_effects) |geff_node| {
-            var geff_buf: [2]Tree.Node.Index = undefined;
-            const geff_full = try ig.resolveArray(&geff_buf, geff_node);
+    if (ans.state_effects) |seff_node| {
+        var seff_buf: [2]Tree.Node.Index = undefined;
+        const seff_full = try ig.resolveArray(&seff_buf, seff_node);
 
-            for (geff_full) |geff_elem_node| {
-                const eff = try ig.parseStruct(Effect, geff_elem_node);
+        for (seff_full) |seff_elem_node| {
+            const seff = try ig.parseStruct(StateEffect, seff_elem_node);
 
-                const tgt_pk: u32 = blk: {
-                    if (eff.target) |tgt_node| {
-                        if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
-                            break :blk tgt;
-                        }
-                    } else {
-                        try ig.addErrorNode(geff_elem_node, "global effect requires 'target' field", .{});
-                    }
-                    break :blk 0;
-                };
-
-                const mult: Ir.Number = blk: {
-                    if (eff.effect) |mult_node| {
-                        if (try ig.resolveNumber(mult_node)) |mult| break :blk mult;
-                    } else {
-                        try ig.addErrorNode(geff_elem_node, "global effect requires 'effect' field", .{});
-                    }
-                    break :blk .fromFloat(0);
-                };
-
-                try payload_wip.global_effects.append(gpa, .{
-                    .ans = ans_idx,
-                    .tgt = tgt_pk,
-                    .mult = mult,
-                });
-            }
-        }
-
-        if (ans.state_effects) |seff_node| {
-            var seff_buf: [2]Tree.Node.Index = undefined;
-            const seff_full = try ig.resolveArray(&seff_buf, seff_node);
-
-            for (seff_full) |seff_elem_node| {
-                const seff = try ig.parseStruct(StateEffect, seff_elem_node);
-
-                const state_pk: u32 = blk: {
-                    if (seff.state) |state_node| {
-                        if (try ig.resolvePk(state_node, &ig.states)) |state| {
-                            break :blk state;
-                        }
-                    } else {
-                        try ig.addErrorNode(seff_elem_node, "issue effect requires 'issue' field", .{});
-                    }
-                    break :blk 0;
-                };
-
-                if (seff.effects) |effs_node| {
-                    var effs_buf: [2]Tree.Node.Index = undefined;
-                    const effs_full = try ig.resolveArray(&effs_buf, effs_node);
-
-                    for (effs_full) |effs_elem_node| {
-                        const eff = try ig.parseStruct(Effect, effs_elem_node);
-
-                        const tgt_pk: u32 = blk: {
-                            if (eff.target) |tgt_node| {
-                                if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
-                                    break :blk tgt;
-                                }
-                            } else {
-                                try ig.addErrorNode(effs_elem_node, "effect requires 'target' field", .{});
-                            }
-                            break :blk 0;
-                        };
-
-                        const mult: Ir.Number = blk: {
-                            if (eff.effect) |mult_node| {
-                                if (try ig.resolveNumber(mult_node)) |mult| break :blk mult;
-                            } else {
-                                try ig.addErrorNode(effs_elem_node, "effect requires 'effect' field", .{});
-                            }
-                            break :blk .fromFloat(0);
-                        };
-
-                        try payload_wip.state_effects.append(gpa, .{
-                            .state = state_pk,
-                            .eff = .{
-                                .ans = ans_idx,
-                                .tgt = tgt_pk,
-                                .mult = mult,
-                            },
-                        });
+            const state: u32 = blk: {
+                if (seff.state) |state_node| {
+                    if (try ig.resolvePk(state_node, &ig.states)) |state| {
+                        break :blk state;
                     }
                 } else {
-                    try ig.addErrorNode(seff_elem_node, "state effect requires 'effects' field", .{});
+                    try ig.addErrorNode(seff_elem_node, "issue effect requires 'issue' field", .{});
                 }
-            }
-        }
+                break :blk 0;
+            };
 
-        if (ans.issue_effects) |ieff_node| {
-            var ieff_buf: [2]Tree.Node.Index = undefined;
-            const ieff_full = try ig.resolveArray(&ieff_buf, ieff_node);
+            if (seff.effects) |effs_node| {
+                var effs_buf: [2]Tree.Node.Index = undefined;
+                const effs_full = try ig.resolveArray(&effs_buf, effs_node);
 
-            for (ieff_full) |ieff_elem_node| {
-                const ieff = try ig.parseStruct(IssueEffect, ieff_elem_node);
-
-                const tgt_resolved: Ir.Payload.IssueEffect.TgtUnion = t: {
-                    if (ieff.target) |target| {
-                        const tgt = try ig.parseStruct(IssueTarget, target);
-                        if (tgt.candidate != null and tgt.state != null) {
-                            const cand_ident = ig.tree.firstToken(tgt.candidate.?) - 2;
-                            const state_ident = ig.tree.firstToken(tgt.state.?) - 2;
-                            try ig.addErrorTokNotes(cand_ident, "target cannot have both 'candidate' and 'state' fields active", .{}, &.{
-                                try ig.errNoteTok(state_ident, "'state' field active here", .{}),
-                            });
-                        }
-                        if (tgt.candidate) |cand| {
-                            if (try ig.resolvePk(cand, &ig.candidates)) |pk| {
-                                break :t .{ .cand = pk };
-                            }
-                        }
-                        if (tgt.state) |state| {
-                            if (try ig.resolvePk(state, &ig.states)) |pk| {
-                                break :t .{ .state = pk };
-                            }
-                        }
-                    }
-                    break :t .{ .cand = null };
-                };
-
-                const iss_pk: u32 = blk: {
-                    if (ieff.issue) |iss_node| {
-                        if (try ig.resolvePk(iss_node, &ig.issues)) |iss| {
-                            break :blk iss;
-                        }
-                    } else {
-                        try ig.addErrorNode(ieff_elem_node, "issue effect requires 'issue' field", .{});
-                    }
-                    break :blk 0;
-                };
-
-                const score: Ir.Number = blk: {
-                    if (ieff.score) |score_node| {
-                        if (try ig.resolveNumber(score_node)) |score| break :blk score;
-                    } else {
-                        try ig.addErrorNode(ieff_elem_node, "issue effect requires 'score' field", .{});
-                    }
-                    break :blk .fromFloat(0);
-                };
-
-                const impt: Ir.Number = blk: {
-                    if (ieff.importance) |impt_node| {
-                        if (try ig.resolveNumber(impt_node)) |impt| break :blk impt;
-                    } else {
-                        try ig.addErrorNode(ieff_elem_node, "issue effect requires 'importance' field", .{});
-                    }
-                    break :blk .fromFloat(0);
-                };
-
-                try payload_wip.issue_effects.append(gpa, .{
-                    .ans = ans_idx,
-                    .issue = iss_pk,
-                    .score = score,
-                    .impt = impt,
-                    .tgt = tgt_resolved,
-                });
+                for (effs_full) |effs_elem_node| {
+                    try ig.lowerStateEffect(payload, effs_elem_node, ans_idx, state);
+                }
+            } else {
+                try ig.addErrorNode(seff_elem_node, "state effect requires 'effects' field", .{});
             }
         }
     }
+
+    if (ans.issue_effects) |ieff_node| {
+        var ieff_buf: [2]Tree.Node.Index = undefined;
+        const ieff_full = try ig.resolveArray(&ieff_buf, ieff_node);
+
+        for (ieff_full) |ieff_elem_node| {
+            try ig.lowerIssueEffect(payload, ieff_elem_node, ans_idx);
+        }
+    }
+}
+
+fn lowerFeedback(
+    ig: *IrGen,
+    payload: *Ir.Payload.Wip,
+    fdbk_node: Tree.Node.Index,
+    ans_elem_node: Tree.Node.Index,
+    ans_idx: u32,
+) !void {
+    const gpa = ig.gpa;
+    const tree = ig.tree;
+
+    try payload.feedbacks.append(gpa, .{
+        .ans = ans_idx,
+        .text = text: {
+            const node_id = tree.nodeId(fdbk_node);
+            if (node_id != .string_literal and node_id != .multiline_string_literal) {
+                try ig.addErrorNode(ans_elem_node, "expected string literal", .{});
+            } else if (ig.strLitAsString(fdbk_node)) |res| switch (res) {
+                .nts => |nts| break :text nts,
+                .slice => |slice| try ig.verifySlice(slice, fdbk_node),
+            } else |err| switch (err) {
+                error.BadString => {},
+                error.OutOfMemory => |e| return e,
+            }
+            break :text .empty;
+        },
+    });
+}
+
+fn lowerGlobalEffect(
+    ig: *IrGen,
+    payload: *Ir.Payload.Wip,
+    geff_elem_node: Tree.Node.Index,
+    ans_idx: u32,
+) !void {
+    const eff = try ig.parseStruct(Effect, geff_elem_node);
+
+    const tgt_pk: u32 = blk: {
+        if (eff.target) |tgt_node| {
+            if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
+                break :blk tgt;
+            }
+        } else {
+            try ig.addErrorNode(geff_elem_node, "global effect requires 'target' field", .{});
+        }
+        break :blk 0;
+    };
+
+    const mult: Ir.Number = blk: {
+        if (eff.effect) |mult_node| {
+            if (try ig.resolveNumber(mult_node)) |mult| break :blk mult;
+        } else {
+            try ig.addErrorNode(geff_elem_node, "global effect requires 'effect' field", .{});
+        }
+        break :blk .fromFloat(0);
+    };
+
+    try payload.global_effects.append(ig.gpa, .{
+        .ans = ans_idx,
+        .tgt = tgt_pk,
+        .mult = mult,
+    });
+}
+
+fn lowerStateEffect(
+    ig: *IrGen,
+    payload: *Ir.Payload.Wip,
+    effs_elem_node: Tree.Node.Index,
+    ans_idx: u32,
+    state: u32,
+) !void {
+    const eff = try ig.parseStruct(Effect, effs_elem_node);
+
+    const tgt_pk: u32 = blk: {
+        if (eff.target) |tgt_node| {
+            if (try ig.resolvePk(tgt_node, &ig.candidates)) |tgt| {
+                break :blk tgt;
+            }
+        } else {
+            try ig.addErrorNode(effs_elem_node, "effect requires 'target' field", .{});
+        }
+        break :blk 0;
+    };
+
+    const mult: Ir.Number = blk: {
+        if (eff.effect) |mult_node| {
+            if (try ig.resolveNumber(mult_node)) |mult| break :blk mult;
+        } else {
+            try ig.addErrorNode(effs_elem_node, "effect requires 'effect' field", .{});
+        }
+        break :blk .fromFloat(0);
+    };
+
+    try payload.state_effects.append(ig.gpa, .{
+        .state = state,
+        .eff = .{
+            .ans = ans_idx,
+            .tgt = tgt_pk,
+            .mult = mult,
+        },
+    });
+}
+
+fn lowerIssueEffect(
+    ig: *IrGen,
+    payload: *Ir.Payload.Wip,
+    ieff_elem_node: Tree.Node.Index,
+    ans_idx: u32,
+) !void {
+    const ieff = try ig.parseStruct(IssueEffect, ieff_elem_node);
+
+    const tgt_resolved: Ir.Payload.IssueEffect.TgtUnion = t: {
+        if (ieff.target) |target| {
+            const tgt = try ig.parseStruct(IssueTarget, target);
+            if (tgt.candidate != null and tgt.state != null) {
+                const cand_ident = ig.tree.firstToken(tgt.candidate.?) - 2;
+                const state_ident = ig.tree.firstToken(tgt.state.?) - 2;
+                try ig.addErrorTokNotes(cand_ident, "target cannot have both 'candidate' and 'state' fields active", .{}, &.{
+                    try ig.errNoteTok(state_ident, "'state' field active here", .{}),
+                });
+            }
+            if (tgt.candidate) |cand| {
+                if (try ig.resolvePk(cand, &ig.candidates)) |pk| {
+                    break :t .{ .cand = pk };
+                }
+            }
+            if (tgt.state) |state| {
+                if (try ig.resolvePk(state, &ig.states)) |pk| {
+                    break :t .{ .state = pk };
+                }
+            }
+        }
+        break :t .{ .cand = null };
+    };
+
+    const issue: u32 = blk: {
+        if (ieff.issue) |iss_node| {
+            if (try ig.resolvePk(iss_node, &ig.issues)) |iss| {
+                break :blk iss;
+            }
+        } else {
+            try ig.addErrorNode(ieff_elem_node, "issue effect requires 'issue' field", .{});
+        }
+        break :blk 0;
+    };
+
+    const score: Ir.Number = blk: {
+        if (ieff.score) |score_node| {
+            if (try ig.resolveNumber(score_node)) |score| break :blk score;
+        } else {
+            try ig.addErrorNode(ieff_elem_node, "issue effect requires 'score' field", .{});
+        }
+        break :blk .fromFloat(0);
+    };
+
+    const impt: Ir.Number = blk: {
+        if (ieff.importance) |impt_node| {
+            if (try ig.resolveNumber(impt_node)) |impt| break :blk impt;
+        } else {
+            try ig.addErrorNode(ieff_elem_node, "issue effect requires 'importance' field", .{});
+        }
+        break :blk .fromFloat(0);
+    };
+
+    try payload.issue_effects.append(ig.gpa, .{
+        .ans = ans_idx,
+        .issue = issue,
+        .score = score,
+        .impt = impt,
+        .tgt = tgt_resolved,
+    });
 }
 
 fn verifySlice(ig: *IrGen, slice: StringLiteralResult.Slice, node: Tree.Node.Index) !void {
