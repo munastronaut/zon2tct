@@ -27,14 +27,14 @@ _zon2tct() {
     case "$cmd" in
         build)
             case "$prev" in
-                --name)
+                -o)
                     _filedir
                     return
                     ;;
             esac
 
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-h --help --name" -- "$cur") )
+                COMPREPLY=( $(compgen -W "-h --help -o" -- "$cur") )
             else
                 _filedir 'zon|txt'
             fi
