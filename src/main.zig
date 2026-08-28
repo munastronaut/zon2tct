@@ -190,7 +190,7 @@ const usage_build =
     \\
     \\Options:
     \\  -h, --help       Print this help and exit
-    \\  --name [name]    Write the output to name
+    \\  -o <file>        Write output to <file>
     \\
 ;
 
@@ -216,11 +216,11 @@ fn buildOutput(
         if (mem.startsWith(u8, arg, "-")) {
             if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
                 return printUsage(io, usage_build, args[0]);
-            } else if (mem.eql(u8, arg, "--name")) {
-                const name = args_iter.nextOrFatal();
-                provided_name = name;
-                if (!mem.eql(u8, name, path.basename(name)))
-                    fatal("invalid file name '{s}': cannot contain folder separators", .{name});
+            } else if (mem.startsWith(u8, arg, "-o")) {
+                var file = arg["-o".len..];
+                if (file.len == 0)
+                    file = args_iter.nextOrFatal();
+                provided_name = file;
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});
             }
