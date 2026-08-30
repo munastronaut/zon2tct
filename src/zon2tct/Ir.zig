@@ -174,11 +174,11 @@ pub const NullTerminatedString = enum(u32) {
     }
 };
 
-pub const Number = struct {
-    value: f64,
+pub const Number = enum(u64) {
+    _,
 
     pub fn format(num: Number, w: *Writer) Writer.Error!void {
-        const val = num.value;
+        const val: f64 = @bitCast(@backingInt(num));
         if (std.math.isFinite(val)) return w.print("{d}", .{val});
         if (std.math.isInf(val)) {
             if (std.math.sign(val) == -1) try w.writeByte('-');
@@ -188,7 +188,7 @@ pub const Number = struct {
     }
 
     pub fn fromFloat(num: f64) Number {
-        return .{ .value = num };
+        return @fromBackingInt(@as(u64, @bitCast(num)));
     }
 
     test format {
@@ -225,3 +225,7 @@ pub const CompileError = extern struct {
         node_or_offset: u32,
     };
 };
+
+test {
+    _ = Number;
+}
