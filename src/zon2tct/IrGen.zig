@@ -63,7 +63,19 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         const root = try ig.parseStruct(Root, root_node);
 
         if (root.definitions) |def_node| {
-            try ig.lowerDefinitions(def_node);
+            const definitions = try ig.parseStruct(Definitions, def_node);
+            inline for (@typeInfo(Definitions).@"struct".field_names) |field_name| {
+                if (@field(definitions, field_name)) |node| {
+                    var buf: [2]Tree.Node.Index = undefined;
+                    const full = tree.fullStructInit(&buf, node).?;
+
+                    const table: *SymbolTable = &@field(ig, field_name);
+
+                    for (full.tree.fields) |val_node| {
+                        try ig.lowerDefinition(table, val_node);
+                    }
+                }
+            }
         }
 
         if (root.player_candidate) |pc_node| {
@@ -71,7 +83,12 @@ pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
         }
 
         if (root.questions) |qn_node| {
-            try ig.lowerQuestions(&wip, qn_node);
+            var qn_buf: [2]Tree.Node.Index = undefined;
+            const qn_full = try ig.resolveArray(&qn_buf, qn_node);
+
+            for (qn_full) |qn_elem_node| {
+                try ig.lowerQuestion(&wip, qn_elem_node);
+            }
         } else {
             try ig.addErrorNode(root_node, "root node must have 'questions' field", .{});
         }
@@ -344,49 +361,34 @@ fn parseStruct(ig: *IrGen, comptime T: type, node: Tree.Node.Index) Allocator.Er
     return result;
 }
 
-fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void {
+fn lowerDefinition(ig: *IrGen, table: *SymbolTable, val_node: Tree.Node.Index) Allocator.Error!void {
     const tree = ig.tree;
-    const definitions = try ig.parseStruct(Definitions, def_node);
 
-    const info = @typeInfo(Definitions).@"struct";
-    const field_names = info.field_names;
+    const ident_tok = tree.firstToken(val_node) - 2;
 
-    inline for (field_names) |field_name| {
-        if (@field(definitions, field_name)) |node| {
-            var buf: [2]Tree.Node.Index = undefined;
-            const full = tree.fullStructInit(&buf, node).?;
+    if (tree.tokenId(ident_tok) != .identifier) {
+        try ig.addErrorNode(val_node, "expected key-value pair for definition", .{});
+        return;
+    }
 
-            const table: *SymbolTable = &@field(ig, field_name);
+    if (ig.identAsString(ident_tok)) |name_str| {
+        const gop = try table.getOrPutContext(
+            ig.gpa,
+            @backingInt(name_str),
+            StringIndexContext{ .bytes = &ig.string_bytes },
+        );
+        if (gop.found_existing) {
+            const raw_str = name_str.getAny(ig.string_bytes.items);
+            try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
+        } else {
+            gop.value_ptr.* = .unresolved;
 
-            for (full.tree.fields) |val_node| {
-                const ident_tok = tree.firstToken(val_node) - 2;
-
-                if (tree.tokenId(ident_tok) != .identifier) {
-                    try ig.addErrorNode(val_node, "expected key-value pair for definition", .{});
-                    continue;
-                }
-
-                if (ig.identAsString(ident_tok)) |name_str| {
-                    const gop = try table.getOrPutContext(
-                        ig.gpa,
-                        @backingInt(name_str),
-                        StringIndexContext{ .bytes = &ig.string_bytes },
-                    );
-                    if (gop.found_existing) {
-                        const raw_str = name_str.getAny(ig.string_bytes.items);
-                        try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
-                    } else {
-                        gop.value_ptr.* = .unresolved;
-
-                        const resolved = try ig.resolvePk(val_node, table) orelse 0;
-                        gop.value_ptr.* = .{ .resolved = resolved };
-                    }
-                } else |err| switch (err) {
-                    error.BadString => {},
-                    error.OutOfMemory => |e| return e,
-                }
-            }
+            const resolved = try ig.resolvePk(val_node, table) orelse 0;
+            gop.value_ptr.* = .{ .resolved = resolved };
         }
+    } else |err| switch (err) {
+        error.BadString => {},
+        error.OutOfMemory => |e| return e,
     }
 }
 
@@ -404,10 +406,7 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
         .enum_literal => if (ig.identAsString(tok)) |idx| {
             if (table.getAdapted(@backingInt(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |state| {
                 switch (state) {
-                    .unresolved => {
-                        try ig.addErrorTok(tok, "aliases cannot reference themselves", .{});
-                        return null;
-                    },
+                    .unresolved => try ig.addErrorTok(tok, "aliases cannot reference themselves", .{}),
                     .resolved => |val| return val,
                 }
             } else {
@@ -511,64 +510,59 @@ fn resolveArray(ig: *IrGen, buf: *[2]Tree.Node.Index, node: Tree.Node.Index) ![]
     return &.{};
 }
 
-fn lowerQuestions(ig: *IrGen, payload: *Ir.Payload.Wip, qn_node: Tree.Node.Index) !void {
+fn lowerQuestion(ig: *IrGen, payload: *Ir.Payload.Wip, qn_elem_node: Tree.Node.Index) !void {
     const gpa = ig.gpa;
     const tree = ig.tree;
 
-    var qn_buf: [2]Tree.Node.Index = undefined;
-    const qn_full = try ig.resolveArray(&qn_buf, qn_node);
+    const qn = try ig.parseStruct(Question, qn_elem_node);
+    const qn_idx: u32 = @intCast(payload.questions.items.len);
 
-    for (qn_full) |qn_elem_node| {
-        const qn = try ig.parseStruct(Question, qn_elem_node);
-        const qn_idx: u32 = @intCast(payload.questions.items.len);
+    if (qn.name) |name_node| {
+        const node_id = tree.nodeId(name_node);
+        if (node_id != .string_literal and node_id != .multiline_string_literal) {
+            try ig.addErrorNode(name_node, "expected string literal", .{});
+        } else if (ig.strLitAsString(name_node)) |res| switch (res) {
+            .nts => |nts| try payload.symbols.append(gpa, .{
+                .kind = .question,
+                .idx = qn_idx,
+                .name = nts,
+            }),
+            .slice => |slice| try ig.verifySlice(slice, name_node),
+        } else |err| switch (err) {
+            error.BadString => {},
+            error.OutOfMemory => |e| return e,
+        }
+    }
 
-        if (qn.name) |name_node| {
-            const node_id = tree.nodeId(name_node);
+    const qn_text: Ir.NullTerminatedString = blk: {
+        if (qn.text) |text_node| {
+            const node_id = tree.nodeId(text_node);
             if (node_id != .string_literal and node_id != .multiline_string_literal) {
-                try ig.addErrorNode(name_node, "expected string literal", .{});
-            } else if (ig.strLitAsString(name_node)) |res| switch (res) {
-                .nts => |nts| try payload.symbols.append(gpa, .{
-                    .kind = .question,
-                    .idx = qn_idx,
-                    .name = nts,
-                }),
-                .slice => |slice| try ig.verifySlice(slice, name_node),
+                try ig.addErrorNode(text_node, "expected string literal", .{});
+            } else if (ig.strLitAsString(text_node)) |res| switch (res) {
+                .nts => |nts| break :blk nts,
+                .slice => |slice| try ig.verifySlice(slice, text_node),
             } else |err| switch (err) {
                 error.BadString => {},
                 error.OutOfMemory => |e| return e,
             }
-        }
-
-        const qn_text: Ir.NullTerminatedString = blk: {
-            if (qn.text) |text_node| {
-                const node_id = tree.nodeId(text_node);
-                if (node_id != .string_literal and node_id != .multiline_string_literal) {
-                    try ig.addErrorNode(text_node, "expected string literal", .{});
-                } else if (ig.strLitAsString(text_node)) |res| switch (res) {
-                    .nts => |nts| break :blk nts,
-                    .slice => |slice| try ig.verifySlice(slice, text_node),
-                } else |err| switch (err) {
-                    error.BadString => {},
-                    error.OutOfMemory => |e| return e,
-                }
-            } else {
-                try ig.addErrorNode(qn_elem_node, "question requires 'text' field", .{});
-            }
-            break :blk .empty;
-        };
-
-        try payload.questions.append(gpa, .{ .text = qn_text });
-
-        if (qn.answers) |ans_node| {
-            var ans_buf: [2]Tree.Node.Index = undefined;
-            const ans_full = try ig.resolveArray(&ans_buf, ans_node);
-
-            for (ans_full) |ans_elem_node| {
-                try ig.lowerAnswer(payload, ans_elem_node, qn_idx);
-            }
         } else {
-            try ig.addErrorNode(qn_elem_node, "question requires 'answers' field", .{});
+            try ig.addErrorNode(qn_elem_node, "question requires 'text' field", .{});
         }
+        break :blk .empty;
+    };
+
+    try payload.questions.append(gpa, .{ .text = qn_text });
+
+    if (qn.answers) |ans_node| {
+        var ans_buf: [2]Tree.Node.Index = undefined;
+        const ans_full = try ig.resolveArray(&ans_buf, ans_node);
+
+        for (ans_full) |ans_elem_node| {
+            try ig.lowerAnswer(payload, ans_elem_node, qn_idx);
+        }
+    } else {
+        try ig.addErrorNode(qn_elem_node, "question requires 'answers' field", .{});
     }
 }
 
