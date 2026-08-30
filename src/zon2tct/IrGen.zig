@@ -27,7 +27,8 @@ issues: SymbolTable,
 compile_errors: std.ArrayList(Ir.CompileError),
 error_notes: std.ArrayList(Ir.CompileError.Note),
 
-const SymbolTable = std.HashMapUnmanaged(u32, u32, StringIndexContext, hash_map.default_max_load_percentage);
+const SymbolState = union(enum) { unresolved, resolved: u32 };
+const SymbolTable = std.HashMapUnmanaged(u32, SymbolState, StringIndexContext, hash_map.default_max_load_percentage);
 
 pub fn generate(gpa: Allocator, tree: Tree) Allocator.Error!Ir {
     var ig: IrGen = .{
@@ -375,10 +376,10 @@ fn lowerDefinitions(ig: *IrGen, def_node: Tree.Node.Index) Allocator.Error!void 
                         const raw_str = name_str.getAny(ig.string_bytes.items);
                         try ig.addErrorTok(ident_tok, "duplicate definition for '{s}'", .{raw_str});
                     } else {
-                        // We use 4294967295 as the poison value here because no modder in their
-                        // right mind would use that as an actual primary key.
-                        const pk = try ig.resolvePk(val_node, table);
-                        gop.value_ptr.* = pk orelse std.math.maxInt(u32);
+                        gop.value_ptr.* = .unresolved;
+
+                        const resolved = try ig.resolvePk(val_node, table) orelse 0;
+                        gop.value_ptr.* = .{ .resolved = resolved };
                     }
                 } else |err| switch (err) {
                     error.BadString => {},
@@ -401,8 +402,14 @@ fn resolvePk(ig: *IrGen, pk_node: Tree.Node.Index, table: *const SymbolTable) Al
             error.InvalidCharacter => try ig.addErrorTok(tok, "invalid character in integer pk", .{}),
         },
         .enum_literal => if (ig.identAsString(tok)) |idx| {
-            if (table.getAdapted(@backingInt(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |val| {
-                return val;
+            if (table.getAdapted(@backingInt(idx), StringIndexContext{ .bytes = &ig.string_bytes })) |state| {
+                switch (state) {
+                    .unresolved => {
+                        try ig.addErrorTok(tok, "aliases cannot reference themselves", .{});
+                        return null;
+                    },
+                    .resolved => |val| return val,
+                }
             } else {
                 const ident = idx.getAny(ig.string_bytes.items);
                 const suggestion = ig.suggest(ident, table);
