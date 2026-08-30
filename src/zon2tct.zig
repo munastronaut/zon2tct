@@ -81,11 +81,5 @@ pub const EnvVar = enum {
 };
 
 test {
-    _ = ErrorBundle;
-    _ = Ir;
-    _ = IrGen;
-    _ = Lexer;
-    _ = Parse;
-    _ = Token;
-    _ = Tree;
+    std.testing.refAllDecls(@This());
 }
