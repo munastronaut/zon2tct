@@ -188,7 +188,7 @@ pub const Number = enum(u64) {
     }
 
     pub fn fromFloat(num: f64) Number {
-        return @fromBackingInt(@as(u64, @bitCast(num)));
+        return @fromBackingInt(@bitCast(num));
     }
 
     test format {
