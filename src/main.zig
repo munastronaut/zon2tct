@@ -164,9 +164,9 @@ fn mainArgs(
 }
 
 fn printUsage(io: Io, comptime str: []const u8, exe_name: []const u8) !void {
-    var w = Io.File.stdout().writer(io, &stdout_buf);
-    try w.interface.print(str, .{exe_name});
-    try w.interface.flush();
+    var fw: Io.File.Writer = .init(.stdout(), io, &stdout_buf);
+    try fw.interface.print(str, .{exe_name});
+    try fw.interface.flush();
     return cleanExit(io);
 }
 
