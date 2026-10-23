@@ -1,10 +1,54 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-install_latest() {
-    if command -v wget >/dev/null 2>&1; then
-        wget -q --show-progress --max-redirect 5 -O zon2tct.tar.gz "https://github.com/munastronaut/zon2tct/releases/latest/download/$1"
+err() {
+    echo "$@"
+    exit 1
+}
+
+latest_ver() {
+    lv_asset=$(curl -Ls \
+                  -H 'Accept: application/vnd.github+json' \
+                  -H 'X-GitHub-Api-Version: 2026-03-10' \
+                  https://api.github.com/repos/munastronaut/zon2tct/releases/latest?per_page=1)
+
+    [ -n "$lv_asset" ] || err 'failed to find latest version'
+
+    echo "$lv_asset" | sed -n 's/.*"tag_name": "\(.*\)".*/\1/p'
+}
+
+arch() {
+    a_arch=$(uname -m)
+
+    case "$a_arch" in
+        x86_64)        a_arch="x86_64";;
+        arm64|aarch64) a_arch="aarch64";;
+    esac
+
+    echo "$a_arch"
+}
+
+os() {
+    o_os=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+    case "$o_os" in
+        linux)  o_os="linux";;
+        darwin) o_os="macos";;
+    esac
+
+    echo "$o_os"
+}
+
+# first arg: arch
+# second arg: os
+# third arg: ver
+install_inner() {
+    inst_asset="zon2tct-$1-$2-$3.tar.gz"
+    inst_link="https://github.com/munastronaut/zon2tct/releases/latest/download/$inst_asset"
+
+    if command -v wget > /dev/null 2>&1; then
+        wget --quiet --max-redirect 5 --output-document=zon2tct.tar.gz "$inst_link" || return 0
     else
-        curl -L --max-redirs 5 "https://github.com/munastronaut/zon2tct/releases/latest/download/$1" -o zon2tct.tar.gz
+        curl --location --silent --max-redirs 5 --output zon2tct.tar.gz "$inst_link" || return 0
     fi
 
     mkdir -p "$HOME/.zon2tct"
@@ -13,64 +57,40 @@ install_latest() {
     rm zon2tct.tar.gz
 }
 
-work() {
-    ARCH=$(uname -m)
-    case "$ARCH" in
-        x86_64)        ARCH="x86_64";;
-        arm64|aarch64) ARCH="aarch64";;
-    esac
+install() {
+    install_inner "$1" "$2" "$3" || err 'failed to install zon2tct'
+}
 
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    case "$OS" in
-        linux)  OS="linux";;
-        darwin) OS="macos";;
-    esac
-
-    ASSET=$(curl -Ls \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            https://api.github.com/repos/munastronaut/zon2tct/releases/latest | \
-            grep -o '"name": "[^"]*' | \
-            grep "$ARCH" | \
-            grep "$OS" | \
-            sed 's/"name": "//' | \
-            tail -n 2 | \
-            head -n 1)
-
-    if [ -n "$ASSET" ]; then
-        install_latest "$ASSET"
-    else
-        echo "could not find matching release for ${OS} with arch ${ARCH}"
-        exit 1
-    fi
-
-    TARGET_FILE=""
+# handles environment stuff
+environ() {
+    env_config_file=''
 
     case "$SHELL" in
-        *fish) TARGET_FILE="$HOME/.config/fish/config.fish";;
+        *fish)
+            env_config_file="$HOME/.config/fish/config.fish"
+            ;;
         *zsh)
             if [ -f "$HOME/.zshenv" ]; then
-                TARGET_FILE="$HOME/.zshenv"
+                env_config_file="$HOME/.zshenv"
             elif [ -f "$HOME/.zprofile" ]; then
-                TARGET_FILE="$HOME/.zprofile"
+                env_config_file="$HOME/.zprofile"
             else
-                TARGET_FILE="$HOME/.zshrc"
+                env_config_file="$HOME/.zshrc"
             fi
             ;;
         *)
             if [ -f "$HOME/.bashrc" ]; then
-                TARGET_FILE="$HOME/.bashrc"
+                env_config_file="$HOME/.bashrc"
             elif [ -f "$HOME/.profile" ]; then
-                TARGET_FILE="$HOME/.profile"
+                env_config_file="$HOME/.profile"
             else
-                TARGET_FILE=""
+                env_config_file=''
             fi
             ;;
     esac
 
-    if [ -n "$TARGET_FILE" ]; then
-        if grep -q 'Z2T_INSTALL' "$TARGET_FILE"; then
-            echo "zon2tct environment variables are already present in $TARGET_FILE"
+    if [ -n "$env_config_file" ]; then
+        if grep -q 'Z2T_INSTALL' "$env_config_file"; then
             exit 0
         fi
 
@@ -78,26 +98,26 @@ work() {
             *fish)
                 {
                     echo
-                    echo "# zon2tct"
+                    echo '# zon2tct'
                     echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
                     echo 'set -gx PATH $PATH "$Z2T_INSTALL"'
-                } >> "$TARGET_FILE"
-                echo "restart fish or run 'source $TARGET_FILE' to start using zon2tct"
+                } >> "$env_config_file"
+                echo "restart fish or run 'source $env_config_file' to start using zon2tct"
                 ;;
             *)
                 {
                     echo
-                    echo "# zon2tct"
+                    echo '# zon2tct'
                     echo 'export Z2T_INSTALL="$HOME/.zon2tct"'
                     echo 'export PATH="$PATH:$Z2T_INSTALL"'
-                } >> "$TARGET_FILE"
-                echo "run 'source $TARGET_FILE' to start using zon2tct"
+                } >> "$env_config_file"
+                echo "run 'source $env_config_file' to start using zon2tct"
                 ;;
         esac
     else
-        echo
-        echo "no suitable shell startup file found"
-        echo "please add the following lines to your shell's startup script (or execute them in your current session):"
+        echo 'failed to find a suitable shell startup file'
+        echo "please add the following lines to your shell's startup script"
+
         case "$SHELL" in
             *fish)
                 echo 'set -gx Z2T_INSTALL "$HOME/.zon2tct"'
@@ -111,4 +131,13 @@ work() {
     fi
 }
 
-work
+main() {
+    arch=$(arch)
+    os=$(os)
+    latest_ver=$(latest_ver)
+
+    install "$arch" "$os" "$latest_ver"
+    environ
+}
+
+main
