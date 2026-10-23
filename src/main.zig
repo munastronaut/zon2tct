@@ -19,9 +19,7 @@ const Color = zon2tct.Color;
 const EnvVar = zon2tct.EnvVar;
 const build_options = @import("build_options");
 
-pub const std_options: std.Options = .{
-    .logFn = logFn,
-};
+pub const std_options: std.Options = .{ .logFn = logFn };
 pub const std_options_cwd = if (native_os == .wasi) wasi_cwd else null;
 
 var preopens: process.Preopens = .empty;
@@ -218,8 +216,7 @@ fn buildOutput(
                 return printUsage(io, usage_build, args[0]);
             } else if (mem.startsWith(u8, arg, "-o")) {
                 var file = arg["-o".len..];
-                if (file.len == 0)
-                    file = args_iter.nextOrFatal();
+                if (file.len == 0) file = args_iter.nextOrFatal();
                 provided_name = file;
             } else {
                 fatal("unrecognized parameter: '{s}'", .{arg});

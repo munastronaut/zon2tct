@@ -14,12 +14,10 @@ pub fn build(b: *Build) !void {
         .strip = !optimize.runtimeSafety(),
     });
 
-    const zon2tct_mod = b.addModule("zon2tct", .{
-        .root_source_file = b.path("src/zon2tct.zig"),
-    });
-    exe.root_module.addImport("zon2tct", zon2tct_mod);
-
+    const zon2tct_mod = b.addModule("zon2tct", .{ .root_source_file = b.path("src/zon2tct.zig") });
     const exe_options = b.addOptions();
+
+    exe.root_module.addImport("zon2tct", zon2tct_mod);
     exe.root_module.addOptions("build_options", exe_options);
 
     const version_str = b.fmt("{f}", .{semver});
