@@ -50,9 +50,9 @@ install_inner() {
     i_link="https://github.com/munastronaut/zon2tct/releases/latest/download/$i_asset"
 
     if command -v wget > /dev/null 2>&1; then
-        wget --quiet --max-redirect 5 --output-document=zon2tct.tar.gz "$i_link" || return 0
+        wget --quiet --max-redirect 5 --output-document=zon2tct.tar.gz "$i_link" || return 1
     else
-        curl --location --silent --max-redirs 5 --output zon2tct.tar.gz "$i_link" || return 0
+        curl --location --silent --max-redirs 5 --output zon2tct.tar.gz "$i_link" || return 1
     fi
 
     mkdir -p "$HOME/.zon2tct"
