@@ -1,108 +1,120 @@
-function Install-Latest {
+function Latest-Ver {
+    $Releases = try {
+        Invoke-RestMethod -Uri "https://api.github.com/repos/munastronaut/zon2tct/releases/latest?per_page=1" `
+            -Headers @{
+                "Accept" = "application/vnd.github+json"
+                "X-GitHub-Api-Version" = "2026-03-10"
+            }
+    } catch {
+        throw "Failed to find latest version: $_"
+    }
+
+    return $Releases.tag_name
+}
+
+function Arch {
+    $Raw = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+
+    $Arch = switch ($Raw) {
+        "X64"   { "x86_64" }
+        "Arm64" { "aarch64" }
+        default { "unknown" }
+    }
+
+    return $Arch
+}
+
+function Os {
+    $Os = switch ($true) {
+        { $IsLinux }   { "linux" }
+        { $IsMacOS }   { "macos" }
+        { $IsWindows } { "windows" }
+        default        { "unknown" }
+    }
+
+    return $Os
+}
+
+function Fmt {
     param(
-        [string]$Suffix
+        [string]$Os
     );
 
-    # Ripping off zvm's install script
-
-    $Z2TRoot = "${Home}\.zon2tct"
-    $Target = $Suffix
-    $ZipPath = "${Z2TRoot}\$Target"
-
-    $URL = "https://github.com/munastronaut/zon2tct/releases/latest/download/$Target"
-
-    $null = mkdir -Force $Z2TRoot
-    Remove-Item -Force $ZipPath -ErrorAction SilentlyContinue
-    curl.exe "-#SfLo" "$ZipPath" "$URL"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output "install failed - could not download $URL"
-        Write-Output "the command 'curl.exe $URL -o $ZipPath' exited with code ${LASTEXITCODE}`n"
-        return
+    $Fmt = switch ($Os) {
+        "windows" { "zip" }
+        default   { "tar.gz" }
     }
-    if (!(Test-Path $ZipPath)) {
-        Write-Output "install failed - could not download $URL"
-        Write-Output "the file '$ZipPath' does not exist. did an antivirus delete it?`n"
-        return
-    }
+
+    return $Fmt
+}
+
+function Install {
+    param(
+        [string]$Arch,
+        [string]$Os,
+        [string]$Ver
+    );
+
+    $Fmt = Fmt $Os
+
+    $Asset = "zon2tct-$Arch-$Os-$Ver.$Fmt"
+    $Link  = "https://github.com/munastronaut/zon2tct/releases/latest/download/$Asset"
+
+    $Filename = "zon2tct.$Fmt"
+
+    $LastPreference = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
     try {
-        $lastProgressPreference = $global:ProgressPreference
-        $global:ProgressPreference = 'SilentlyContinue';
-        Remove-Item "${Z2TRoot}\zon2tct.exe" -Force -ErrorAction SilentlyContinue
-        Expand-Archive "$ZipPath" "$Z2TRoot" -Force
-        Unblock-File "${Z2TRoot}\zon2tct.exe" -ErrorAction SilentlyContinue
-        $global:ProgressPreference = $lastProgressPreference
-        if (!(Test-Path "${Z2TRoot}\zon2tct.exe")) {
-            throw "the file '${Z2TRoot}\zon2tct.exe' does not exist`nlikely cause: Windows Defender quarantined it`nfix: add an exclusion for '$Z2TRoot' in Windows Security > Virus & threat protection > Exclusions, then re-run the installer`n"
+        Invoke-WebRequest -Uri $Link -OutFile $Filename
+    } catch {
+        throw "Failed to download zon2tct: $_"
+    }
+    $ProgressPreference = $LastPreference
+
+    $Path = Join-Path -Path $Home -ChildPath ".zon2tct"
+
+    New-Item -Force -Path "${Home}" -Name ".zon2tct" -ItemType "Directory"
+
+    try {
+        switch ($Fmt) {
+            "zip"    { Expand-Archive -Path $Filename -Force -ErrorAction Stop }
+            "tar.gz" { tar -xzf $Filename -C $Path }
         }
-    }
-    catch {
-        Write-Output "install failed - could not unzip $ZipPath"
-        Write-Error $_
-        return
-    }
-    Remove-Item "$ZipPath" -Force -ErrorAction SilentlyContinue
-
-    $null = "$(& "${Z2TRoot}\zon2tct.exe")"
-    if ($LASTEXITCODE -eq 1073741795) {
-        # STATUS_ILLEGAL_INSTRUCTION
-        Write-Output "install failed - zon2tct.exe is not compatible with your CPU`n"
-        return
-    }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output "install failed - could not verify zon2tct.exe"
-        Write-Output "the command '${Z2TRoot}\zon2tct.exe' exited with code ${LASTEXITCODE}`n"
-        return
+    } catch {
+        throw "Failed to extract ${Filename}: $_"
     }
 
+    $ArchivePath = Join-Path -Path $Path -ChildPath zon2tct
+
+    switch ($Os) {
+        "linux" { chmod +x $ArchivePath }
+        default { Unblock-File -Path $ArchivePath -Force -ErrorAction SilentlyContinue }
+    }
+
+    Remove-Item $Filename -Force -ErrorAction SilentlyContinue
+}
+
+function Environ {
     $User = [System.EnvironmentVariableTarget]::User
-    $Path = [System.Environment]::GetEnvironmentVariable('Path', $User) -split ';'
-    $Z2TInstall = 'Z2T_INSTALL'
+    $Path = [System.Environment]::GetEnvironmentVariable('Path', &User) -split ';'
 
-    $Z2TInstallValue = [System.Environment]::GetEnvironmentVariable($Z2TInstall, [System.EnvironmentVariableTarget]::User)
+    $Z2TRoot = Join-Path -Path $Home -ChildPath ".zon2tct"
+    $Z2TInst    = 'Z2T_INSTALL'
+    $Z2TInstVal = [System.Environment]::GetEnvironmentVariable($Z2TInst, &User)
 
-    if ($null -eq $Z2TInstallValue) {
-        [System.Environment]::SetEnvironmentVariable($Z2TInstall, $Z2TRoot, [System.EnvironmentVariableTarget]::User)
+    if ($null -eq $Z2TInstVal) {
+        [System.Environment]::SetEnvironmentVariable($Z2TInst, $Z2TRoot, &User)
     }
 
     if ($Path -notcontains $Z2TRoot) {
         $Path += $Z2TRoot
         [System.Environment]::SetEnvironmentVariable('Path', $Path -join ';', $User)
     }
-    $SessionPath = $env:PATH -split ';'
-    if ($SessionPath -notcontains $Z2TRoot) {
-        $env:PATH = "${env:PATH};${Z2TRoot}"
-    }
-
-    Write-Output "zon2tct was installed at '${Z2TRoot}\zon2tct.exe'"
-    Write-Output "restart your terminal or editor to start using zon2tct"
 }
 
-$PROCESSOR_ARCH = switch ($env:PROCESSOR_ARCHITECTURE.ToLower()) {
-    "amd64" { "x86_64" }
-    "arm64" { "aarch64" }
-    default { $env:PROCESSOR_ARCHITECTURE.ToLower() } 
+function Main {
+    Install $(Arch) $(Os) $(Latest-Ver)
+    Environ
 }
 
-if ($PROCESSOR_ARCH -eq "x86") {
-    Write-Output "install failed - zon2tct requires a 64-bit environment"
-    Write-Output "please ensure that you are running the 64-bit version of PowerShell or that your system is 64-bit`n"
-    return
-}
-
-function Actual-Install {
-    $Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/munastronaut/zon2tct/releases/latest" `
-                                  -Headers @{
-                                      "Accept" = "application/vnd.github+json"
-                                      "X-GitHub-Api-Version" = "2026-03-10"
-                                  }
-
-    $Assets = $Releases.assets |
-        Where-Object {$_.name -like "*$PROCESSOR_ARCH*" -and $_.name -like "*windows*"} |
-        Select-Object -ExpandProperty name
-
-    $Asset = $Assets | Select-Object -Last 2 | Select-Object -First 1
-
-    Install-Latest $Asset
-}
-
-Actual-Install
+Main
