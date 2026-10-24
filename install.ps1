@@ -98,7 +98,7 @@ function Environ {
     $User = [System.EnvironmentVariableTarget]::User
     $Path = [System.Environment]::GetEnvironmentVariable('Path', &User) -split ';'
 
-    $Z2TRoot = Join-Path -Path $Home -ChildPath ".zon2tct"
+    $Z2TRoot    = Join-Path -Path $Home -ChildPath ".zon2tct"
     $Z2TInst    = 'Z2T_INSTALL'
     $Z2TInstVal = [System.Environment]::GetEnvironmentVariable($Z2TInst, &User)
 

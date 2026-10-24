@@ -85,7 +85,8 @@ install_inner() {
 
     case "$i_fmt" in
         'tar.gz')
-            tar -xzf "$i_filename" -C "$i_path";;
+            tar -xzf "$i_filename" -C "$i_path"
+            ;;
         'zip')
             if command -v unzip > /dev/null 2>&1; then
                 unzip "$i_filename" -d "$i_path"
