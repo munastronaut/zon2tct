@@ -42,13 +42,17 @@ os() {
 # second arg: os
 # third arg: ver
 install_inner() {
-    inst_asset="zon2tct-$1-$2-$3.tar.gz"
-    inst_link="https://github.com/munastronaut/zon2tct/releases/latest/download/$inst_asset"
+    i_arg_arch=$1
+    i_arg_os=$2
+    i_arg_ver=$3
+
+    i_asset="zon2tct-$i_arg_arch-$i_arg_os-$i_arg_ver.tar.gz"
+    i_link="https://github.com/munastronaut/zon2tct/releases/latest/download/$i_asset"
 
     if command -v wget > /dev/null 2>&1; then
-        wget --quiet --max-redirect 5 --output-document=zon2tct.tar.gz "$inst_link" || return 0
+        wget --quiet --max-redirect 5 --output-document=zon2tct.tar.gz "$i_link" || return 0
     else
-        curl --location --silent --max-redirs 5 --output zon2tct.tar.gz "$inst_link" || return 0
+        curl --location --silent --max-redirs 5 --output zon2tct.tar.gz "$i_link" || return 0
     fi
 
     mkdir -p "$HOME/.zon2tct"
