@@ -136,11 +136,7 @@ environ() {
 }
 
 main() {
-    arch=$(arch)
-    os=$(os)
-    latest_ver=$(latest_ver)
-
-    install "$arch" "$os" "$latest_ver"
+    install "$(arch)" "$(os)" "$(latest_ver)"
     environ
 }
 
