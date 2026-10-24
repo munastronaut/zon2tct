@@ -95,7 +95,8 @@ environ() {
 
     if [ -n "$env_config_file" ]; then
         if grep -q 'Z2T_INSTALL' "$env_config_file"; then
-            exit 0
+            echo "environment variables already present in $env_config_file"
+            return 0
         fi
 
         case "$SHELL" in
