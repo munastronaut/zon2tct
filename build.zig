@@ -86,6 +86,9 @@ pub fn build(b: *Build) !void {
         .target = target,
     });
 
+    exe_check.root_module.addImport("zon2tct", zon2tct_mod);
+    exe_check.root_module.addOptions("build_options", exe_options);
+
     const check = b.step("check", "Check if zon2tct compiles");
     check.dependOn(&exe_check.step);
 }
