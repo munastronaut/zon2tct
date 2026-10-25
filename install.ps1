@@ -84,7 +84,12 @@ function Install {
         throw "failed to extract ${Filename}: $_"
     }
 
-    $ArchivePath = Join-Path -Path $Path -ChildPath zon2tct
+    $ExeFmt = switch ($Os) {
+        windows { '.exe' }
+        default { '' }
+    }
+
+    $ArchivePath = Join-Path -Path $Path -ChildPath "zon2tct$ExeFmt"
 
     switch ($Os) {
         "linux" { chmod +x $ArchivePath }
