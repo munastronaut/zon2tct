@@ -1,7 +1,8 @@
 #!/bin/sh
+set -e
 
 err() {
-    echo "$@"
+    echo "$@" >&2
     exit 1
 }
 
@@ -9,9 +10,14 @@ latest_ver() {
     lv_asset=$(curl -Ls \
                   -H 'Accept: application/vnd.github+json' \
                   -H 'X-GitHub-Api-Version: 2026-03-10' \
-                  https://api.github.com/repos/munastronaut/zon2tct/releases/latest?per_page=1)
+                  https://api.github.com/repos/munastronaut/zon2tct/releases/latest)
 
     [ -n "$lv_asset" ] || err 'failed to find latest version'
+
+    case "$lv_asset" in
+        *'rate-limiting'*) err 'rate limited; try again later, or turn off your VPN temporarily';;
+        *)                 ;;
+    esac
 
     echo "$lv_asset" | sed -n 's/.*"tag_name": "\(.*\)".*/\1/p'
 }
@@ -51,32 +57,41 @@ fmt() {
     f_fmt=''
 
     case "$f_arg_os" in
-        windows) f_fmt='zip';;
-        *)       f_fmt='tar.gz';;
+        windows) f_fmt='.zip';;
+        *)       f_fmt='.tar.gz';;
     esac
 
     echo "$f_fmt"
 }
 
-# first arg: arch
-# second arg: os
-# third arg: ver
-install_inner() {
+# args
+#   1. arch
+#   2. os
+#   3. ver
+install() {
     i_arg_arch=$1
     i_arg_os=$2
     i_arg_ver=$3
 
     i_fmt=$(fmt "$i_arg_os")
 
-    i_asset="zon2tct-$i_arg_arch-$i_arg_os-$i_arg_ver.$i_fmt"
+    i_asset="zon2tct-$i_arg_arch-$i_arg_os-$i_arg_ver$i_fmt"
     i_link="https://github.com/munastronaut/zon2tct/releases/latest/download/$i_asset"
 
-    i_filename="zon2tct.$i_fmt"
+    i_filename="zon2tct$i_fmt"
+
+    i_down_failed=0
 
     if command -v wget > /dev/null 2>&1; then
-        wget --quiet --max-redirect 5 --output-document="$i_filename" "$i_link" || return 1
+        wget --quiet --max-redirect 5 --output-document="$i_filename" "$i_link" || \
+            i_down_failed=1
     else
-        curl --location --silent --max-redirs 5 --output "$i_filename" "$i_link" || return 1
+        curl --location --silent --max-redirs 5 --output "$i_filename" "$i_link" || \
+            i_down_failed=1
+    fi
+
+    if [ "$i_down_failed" -eq 1 ]; then
+        err 'failed to download zon2tct'
     fi
 
     i_path="$HOME/.zon2tct"
@@ -96,12 +111,14 @@ install_inner() {
             ;;
     esac
 
-    chmod +x "$i_path/zon2tct"
-    rm "$i_filename"
-}
+    i_exe_fmt=""
+    case "$i_os" in
+        windows) i_exe_fmt=".exe";;
+        *)       i_exe_fmt="";;
+    esac
 
-install() {
-    install_inner "$1" "$2" "$3" || err 'failed to install zon2tct'
+    chmod +x "$i_path/zon2tct$i_exe_fmt"
+    rm "$i_filename"
 }
 
 # handles environment stuff
@@ -176,7 +193,11 @@ environ() {
 }
 
 main() {
-    install "$(arch)" "$(os)" "$(latest_ver)"
+    arch=$(arch)
+    os=$(os)
+    ver=$(latest_ver)
+
+    install "$arch" "$os" "$ver"
     environ
 }
 
