@@ -1,34 +1,54 @@
 const Emit = @This();
 
-const Compilation = @import("Compilation.zig");
 const zon2tct = @import("zon2tct");
+const Ir = zon2tct.Ir;
 
 const std = @import("std");
 const Writer = std.Io.Writer;
 
-comp: *Compilation,
 w: *Writer,
-ir: zon2tct.Ir,
+ir: Ir,
+
+const Base = struct {
+    qn: usize,
+    ans: usize,
+    fdbk: usize,
+    geff: usize,
+    seff: usize,
+    ieff: usize,
+
+    pub fn init(payload: Ir.Payload, qn: usize) Base {
+        const ans = qn + payload.questions.len;
+        const fdbk = ans + payload.answers.len;
+        const geff = fdbk + payload.feedbacks.len;
+        const seff = geff + payload.global_effects.len;
+        const ieff = seff + payload.state_effects.len;
+
+        return .{
+            .qn = qn,
+            .ans = ans,
+            .fdbk = fdbk,
+            .geff = geff,
+            .seff = seff,
+            .ieff = ieff,
+        };
+    }
+};
 
 pub fn emit(e: *Emit) !void {
     const w = e.w;
     const ir = e.ir;
     const payload = ir.payload;
 
-    const base_qn = 1000;
-    const base_ans = base_qn + payload.questions.len;
-    const base_fdbk = base_ans + payload.answers.len;
-    const base_geff = base_fdbk + payload.feedbacks.len;
-    const base_seff = base_geff + payload.global_effects.len;
-    const base_ieff = base_seff + payload.state_effects.len;
+    const base: Base = .init(payload, 1000);
 
     if (payload.symbols.len > 0) {
         try w.writeAll("const SYMBOLS = {");
         for (payload.symbols, 0..) |symbol, i| {
             const key = symbol.name.get(ir);
             const pk = switch (symbol.kind) {
-                .question => base_qn + symbol.idx,
-                .answer => base_ans + symbol.idx,
+                .question => base.qn + symbol.idx,
+                .answer => base.ans + symbol.idx,
             };
 
             if (i == 0) try w.writeByte('\n');
@@ -58,7 +78,7 @@ pub fn emit(e: *Emit) !void {
                 \\    }}
                 \\  }},
                 \\
-            , .{ base_qn + i, zon2tct.fmtString(question.text.get(ir)) });
+            , .{ base.qn + i, zon2tct.fmtString(question.text.get(ir)) });
         }
         try w.writeAll("];\n\n");
     }
@@ -78,8 +98,8 @@ pub fn emit(e: *Emit) !void {
                 \\  }},
                 \\
             , .{
-                base_ans + i,
-                base_qn + answer.qn,
+                base.ans + i,
+                base.qn + answer.qn,
                 zon2tct.fmtString(answer.text.get(ir)),
             });
         }
@@ -102,8 +122,8 @@ pub fn emit(e: *Emit) !void {
                 \\  }},
                 \\
             , .{
-                base_fdbk + i,
-                base_ans + feedback.ans,
+                base.fdbk + i,
+                base.ans + feedback.ans,
                 ir.player,
                 zon2tct.fmtString(feedback.text.get(ir)),
             });
@@ -128,8 +148,8 @@ pub fn emit(e: *Emit) !void {
                 \\  }},
                 \\
             , .{
-                base_geff + i,
-                base_ans + geff.ans,
+                base.geff + i,
+                base.ans + geff.ans,
                 ir.player,
                 geff.tgt,
                 geff.mult,
@@ -156,8 +176,8 @@ pub fn emit(e: *Emit) !void {
                 \\  }},
                 \\
             , .{
-                base_seff + i,
-                base_ans + seff.eff.ans,
+                base.seff + i,
+                base.ans + seff.eff.ans,
                 seff.state,
                 ir.player,
                 seff.eff.tgt,
@@ -184,9 +204,9 @@ pub fn emit(e: *Emit) !void {
                 \\  }},
                 \\
             , .{
-                base_ieff + i,
+                base.ieff + i,
                 ieff.tgt,
-                base_ans + ieff.ans,
+                base.ans + ieff.ans,
                 ieff.issue,
                 ieff.score,
                 ieff.impt,

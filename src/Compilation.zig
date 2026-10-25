@@ -82,11 +82,7 @@ pub fn work(comp: *Compilation) !void {
     var write_buf: [1024]u8 = undefined;
     var file_writer = artifact_file.writer(io, &write_buf);
 
-    var e: Emit = .{
-        .comp = comp,
-        .ir = ir,
-        .w = &file_writer.interface,
-    };
+    var e: Emit = .{ .ir = ir, .w = &file_writer.interface };
     try e.emit();
 }
 
