@@ -43,7 +43,7 @@ pub fn build(b: *Build) !void {
         .{ .cpu_arch = .aarch64, .os_tag = .macos },
     };
 
-    const release_opt: std.lang.OptimizeMode = .small;
+    const release_opt: std.lang.Optimize = .small;
 
     const archiver_exe = b.addExecutable(.{
         .name = "archiver",
@@ -94,7 +94,7 @@ pub fn build(b: *Build) !void {
 }
 
 const AddCompilerModOptions = struct {
-    optimize: std.lang.OptimizeMode,
+    optimize: std.lang.Optimize,
     target: Build.ResolvedTarget,
     strip: ?bool = null,
 };
