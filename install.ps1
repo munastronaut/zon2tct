@@ -6,7 +6,7 @@ function Latest-Ver {
                 "X-GitHub-Api-Version" = "2026-03-10"
             }
     } catch {
-        throw "Failed to find latest version: $_"
+        throw "failed to find latest version: $_"
     }
 
     return $Releases.tag_name
@@ -41,8 +41,8 @@ function Fmt {
     );
 
     $Fmt = switch ($Os) {
-        "windows" { "zip" }
-        default   { "tar.gz" }
+        "windows" { ".zip" }
+        default   { ".tar.gz" }
     }
 
     return $Fmt
@@ -57,17 +57,17 @@ function Install {
 
     $Fmt = Fmt $Os
 
-    $Asset = "zon2tct-$Arch-$Os-$Ver.$Fmt"
+    $Asset = "zon2tct-$Arch-$Os-$Ver$Fmt"
     $Link  = "https://github.com/munastronaut/zon2tct/releases/latest/download/$Asset"
 
-    $Filename = "zon2tct.$Fmt"
+    $Filename = "zon2tct$Fmt"
 
     $LastPreference = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
     try {
         Invoke-WebRequest -Uri $Link -OutFile $Filename
     } catch {
-        throw "Failed to download zon2tct: $_"
+        throw "failed to download zon2tct: $_"
     }
     $ProgressPreference = $LastPreference
 
@@ -81,7 +81,7 @@ function Install {
             "tar.gz" { tar -xzf $Filename -C $Path }
         }
     } catch {
-        throw "Failed to extract ${Filename}: $_"
+        throw "failed to extract ${Filename}: $_"
     }
 
     $ArchivePath = Join-Path -Path $Path -ChildPath zon2tct
@@ -95,21 +95,25 @@ function Install {
 }
 
 function Environ {
+    $Sep  = [System.IO.Path]::PathSeparator
     $User = [System.EnvironmentVariableTarget]::User
-    $Path = [System.Environment]::GetEnvironmentVariable('Path', &User) -split ';'
+    $Path = [System.Environment]::GetEnvironmentVariable('Path', $User) -split $Sep
 
     $Z2TRoot    = Join-Path -Path $Home -ChildPath ".zon2tct"
     $Z2TInst    = 'Z2T_INSTALL'
-    $Z2TInstVal = [System.Environment]::GetEnvironmentVariable($Z2TInst, &User)
+    $Z2TInstVal = [System.Environment]::GetEnvironmentVariable($Z2TInst, $User)
 
     if ($null -eq $Z2TInstVal) {
-        [System.Environment]::SetEnvironmentVariable($Z2TInst, $Z2TRoot, &User)
+        [System.Environment]::SetEnvironmentVariable($Z2TInst, $Z2TRoot, $User)
     }
 
     if ($Path -notcontains $Z2TRoot) {
         $Path += $Z2TRoot
-        [System.Environment]::SetEnvironmentVariable('Path', $Path -join ';', $User)
+        [System.Environment]::SetEnvironmentVariable('Path', $Path -join $Sep, $User)
     }
+
+    Write-Host "zon2tct was installed at $Z2TRoot"
+    Write-Host 'restart your shell to start using zon2tct'
 }
 
 function Main {
