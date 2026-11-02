@@ -1,0 +1,54 @@
+// This is adapted from the following CampaignScript example, extracted from
+// https://script.newcampaigntrail.com/tests/demo.txt
+//
+// # Comments should be ignored
+//
+// # Blank lines are also ignored (like above)
+//
+// Question 1: Do you like the hit game Among Us? # opening a line with "Question" indicates that a new question is beginning, and ends the previous question. you can write anything you want until the first ":", so technically both "Question amogus sus:" and just "Question:" are valid
+//
+// - no # the "-" denotes the start of an answer, and any space after that is truncated
+// (fuck you) # what is inside the brackets denotes the feedback for the answer
+// - yes
+// (sus)
+// - maybe # this answer has no feedback
+//
+// Question 2: Another question! # this terminates the previous question and starts the new one.
+//
+// - some answer
+// (cool)
+// - another one
+// (also cool)
+.{
+    .questions = .{
+        .{
+            .text = "Do you like the hit game Among Us?",
+            .answers = .{
+                .{
+                    .text = "no",
+                    .feedback = "fuck you",
+                },
+                .{
+                    .text = "yes",
+                    .feedback = "sus",
+                },
+                .{
+                    .text = "maybe",
+                },
+            },
+        },
+        .{
+            .text = "Another question!",
+            .answers = .{
+                .{
+                    .text = "some answer",
+                    .feedback = "cool",
+                },
+                .{
+                    .text = "another one",
+                    .feedback = "also cool",
+                },
+            },
+        },
+    },
+}
