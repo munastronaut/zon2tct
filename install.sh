@@ -112,7 +112,7 @@ install() {
     esac
 
     i_exe_fmt=""
-    case "$i_os" in
+    case "$i_arg_os" in
         windows) i_exe_fmt=".exe";;
         *)       i_exe_fmt="";;
     esac
