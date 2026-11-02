@@ -19,7 +19,11 @@ latest_ver() {
         *)                 ;;
     esac
 
-    echo "$lv_asset" | sed -n 's/.*"tag_name": "\(.*\)".*/\1/p'
+    if command -v jq > /dev/null 2>&1; then
+        echo "$lv_asset" | jq '.tag_name' | tr -d '"'\'''
+    else
+        echo "$lv_asset" | sed -n 's/.*"tag_name": "\(.*\)".*/\1/p'
+    fi
 }
 
 arch() {
