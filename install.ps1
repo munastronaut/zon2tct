@@ -13,7 +13,7 @@ function Latest-Ver {
 }
 
 function Arch {
-    $Raw = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+    $Raw = [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture
 
     $Arch = switch ($Raw) {
         "X64"   { "x86_64" }
@@ -77,8 +77,8 @@ function Install {
 
     try {
         switch ($Fmt) {
-            "zip"    { Expand-Archive -Path $Filename -Force -ErrorAction Stop }
-            "tar.gz" { tar -xzf $Filename -C $Path }
+            ".zip"    { Expand-Archive -Path $Filename -Force -ErrorAction Stop }
+            ".tar.gz" { tar -xzf $Filename -C $Path }
         }
     } catch {
         throw "failed to extract ${Filename}: $_"
@@ -121,8 +121,22 @@ function Environ {
     Write-Host 'restart your shell to start using zon2tct'
 }
 
+function Os-Wrap {
+    $Os = if ($PSVersionTable.PSEdition -ne "Core") {
+        "windows"
+    } else {
+        Os
+    }
+
+    return $Os
+}
+
 function Main {
-    Install $(Arch) $(Os) $(Latest-Ver)
+    $Arch = Arch
+    $Os   = Os-Wrap
+    $Ver  = Latest-Ver
+
+    Install $Arch $Os $Ver
     Environ
 }
 
